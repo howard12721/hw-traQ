@@ -8,7 +8,15 @@
       :updated-at="message.updatedAt"
     />
     <div :class="$style.messageContents">
-      <MarkdownContent v-show="!isEditing" :content="renderedContent" />
+      <MutedMessageNotice
+        v-if="isMuted && !isRevealed && !isEditing"
+        @reveal="isRevealed = true"
+      />
+      <MarkdownContent
+        v-show="!isEditing"
+        v-else
+        :content="renderedContent"
+      />
       <MessageEditor
         v-if="isEditing"
         :raw-content="message.content"
@@ -18,18 +26,21 @@
       />
       <MessageQuoteList
         v-if="embeddingsState.quoteMessageIds.length > 0"
+        v-show="!isMuted || isRevealed || isEditing"
         :class="$style.messageEmbeddingsList"
         :parent-message-channel-id="message.channelId"
         :message-ids="embeddingsState.quoteMessageIds"
       />
       <MessageFileList
         v-if="embeddingsState.fileIds.length > 0"
+        v-show="!isMuted || isRevealed || isEditing"
         :class="$style.messageEmbeddingsList"
         :channel-id="message.channelId"
         :file-ids="embeddingsState.fileIds"
       />
       <MessageOgpList
         v-if="embeddingsState.externalUrls.length > 0"
+        v-show="!isMuted || isRevealed || isEditing"
         :external-urls="embeddingsState.externalUrls"
       />
     </div>
@@ -37,11 +48,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import MarkdownContent from '/@/components/UI/MarkdownContent.vue'
+import MutedMessageNotice from '/@/components/UI/MutedMessageNotice.vue'
 import UserIcon from '/@/components/UI/UserIcon.vue'
 import useEmbeddings from '/@/composables/message/useEmbeddings'
+import { useMuteSettings } from '/@/store/app/muteSettings'
 import { useMessagesView } from '/@/store/domain/messagesView'
 import { useMessagesStore } from '/@/store/entities/messages'
 import { useMessageEditingStateStore } from '/@/store/ui/messageEditingStateStore'
@@ -60,6 +73,15 @@ const props = defineProps<{
 const { messagesMap } = useMessagesStore()
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 const message = computed(() => messagesMap.value.get(props.messageId)!)
+const { isMessageMuted } = useMuteSettings()
+const isMuted = computed(() => isMessageMuted(message.value))
+const isRevealed = ref(false)
+watch(
+  () => props.messageId,
+  () => {
+    isRevealed.value = false
+  }
+)
 
 const { editingMessageId } = useMessageEditingStateStore()
 const isEditing = computed(() => props.messageId === editingMessageId.value)

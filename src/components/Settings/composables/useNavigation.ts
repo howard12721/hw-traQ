@@ -14,6 +14,7 @@ export type NavigationItemType =
   | 'stamp-palette'
   | 'theme'
   | 'audio'
+  | 'mute'
   | 'gazer'
   | 'feature-flag'
 
@@ -32,6 +33,7 @@ export const navigationRouteNameTitleMap: Record<
   settingsStampPaletteDetail: 'スタンプパレット',
   settingsTheme: 'テーマ',
   settingsAudio: '音声',
+  settingsMute: 'ミュート',
   settingsGazer: 'Gazer',
   settingsFeatureFlag: '実験的機能'
 }
@@ -82,6 +84,11 @@ export const navigations: {
   {
     routeName: 'settingsAudio',
     iconName: 'volume-high',
+    iconMdi: true
+  },
+  {
+    routeName: 'settingsMute',
+    iconName: 'comment-off-outline',
     iconMdi: true
   },
   {

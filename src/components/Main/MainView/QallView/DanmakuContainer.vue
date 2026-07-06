@@ -5,6 +5,7 @@ import party from 'party-js'
 
 import { useQall } from '/@/composables/qall/useQall'
 import useMittListener from '/@/composables/utils/useMittListener'
+import { useMuteSettings } from '/@/store/app/muteSettings'
 import { messageMitt } from '/@/store/entities/messages'
 
 import DanmakuComment from './DanmakuComment.vue'
@@ -12,6 +13,7 @@ import DanmakuStamp from './DanmakuStamp.vue'
 import { useDanmakuSparkle } from './useDanmakuSparkle'
 
 const { callingChannel, qallMitt } = useQall()
+const { isMessageMuted } = useMuteSettings()
 
 const comments = ref<{ id: string; markdown: string }[]>([])
 const stamps = ref<{ id: string; stampId: string }[]>([])
@@ -30,6 +32,7 @@ const showSparkle = (stampElement: HTMLElement) => {
 
 messageMitt.on('addMessage', ({ message }) => {
   if (message.channelId !== callingChannel.value) return
+  if (isMessageMuted(message)) return
 
   comments.value.push({
     id: message.id,
@@ -46,6 +49,8 @@ messageMitt.on('deleteMessage', messageId => {
 
 messageMitt.on('updateMessage', async message => {
   if (message.channelId !== callingChannel.value) return
+  if (isMessageMuted(message)) return
+
   comments.value = comments.value.filter(v => v.id !== message.id)
   await nextTick()
   comments.value.push({

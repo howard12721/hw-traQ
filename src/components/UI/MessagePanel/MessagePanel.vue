@@ -38,7 +38,13 @@
           mdi
         />
       </div>
+      <MutedMessageNotice
+        v-if="isMuted && !isRevealed"
+        @click.prevent
+        @reveal="isRevealed = true"
+      />
       <RenderContent
+        v-else
         :content="message.content"
         :line-clamp-content="lineClampContent"
       />
@@ -50,11 +56,13 @@
 <script lang="ts" setup>
 import type { ActivityTimelineMessage, Message } from '@traptitech/traq'
 
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import AIcon from '/@/components/UI/AIcon.vue'
+import MutedMessageNotice from '/@/components/UI/MutedMessageNotice.vue'
 import useChannelPath from '/@/composables/useChannelPath'
 import { setFallbackForNullishOrOnError } from '/@/lib/basic/fallback'
+import { useMuteSettings } from '/@/store/app/muteSettings'
 import { useUsersStore } from '/@/store/entities/users'
 
 import ChannelName from './ChannelName.vue'
@@ -83,6 +91,15 @@ const emit = defineEmits<{
 }>()
 
 const { usersMap, fetchUser } = useUsersStore()
+const { isMessageMuted } = useMuteSettings()
+const isMuted = computed(() => isMessageMuted(props.message))
+const isRevealed = ref(false)
+watch(
+  () => props.message.id,
+  () => {
+    isRevealed.value = false
+  }
+)
 
 const userState = computed(() => usersMap.value.get(props.message.userId))
 if (userState.value === undefined) {

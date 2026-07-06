@@ -11,7 +11,12 @@
       :user-id="message!.userId"
     />
     <div :class="$style.messageContents">
+      <MutedMessageNotice
+        v-if="isMuted && !isRevealed"
+        @reveal="isRevealed = true"
+      />
       <div
+        v-else
         :id="markdownId"
         ref="contentRef"
         :class="[$style.markdownContainer, oversized && $style.oversized]"
@@ -54,14 +59,16 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onBeforeMount, ref, useId, watchEffect } from 'vue'
+import { computed, onBeforeMount, ref, useId, watch, watchEffect } from 'vue'
 
 import FoldButton from '/@/components/UI/FoldButton.vue'
 import MarkdownContent from '/@/components/UI/MarkdownContent.vue'
+import MutedMessageNotice from '/@/components/UI/MutedMessageNotice.vue'
 import UserIcon from '/@/components/UI/UserIcon.vue'
 import useBoxSize from '/@/composables/dom/useBoxSize'
 import useEmbeddings from '/@/composables/message/useEmbeddings'
 import useToggle from '/@/composables/utils/useToggle'
+import { useMuteSettings } from '/@/store/app/muteSettings'
 import { useMessagesView } from '/@/store/domain/messagesView'
 import { useChannelsStore } from '/@/store/entities/channels'
 import { useMessagesStore } from '/@/store/entities/messages'
@@ -95,6 +102,15 @@ watchEffect(async () => {
 })
 
 const message = computed(() => messagesMap.value.get(props.messageId))
+const { isMessageMuted } = useMuteSettings()
+const isMuted = computed(() => !!message.value && isMessageMuted(message.value))
+const isRevealed = ref(false)
+watch(
+  () => props.messageId,
+  () => {
+    isRevealed.value = false
+  }
+)
 const shouldShow = computed(
   () =>
     !!message.value &&
