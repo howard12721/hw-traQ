@@ -12,36 +12,21 @@
 
     <transition-group name="timeline" tag="div">
       <template v-if="notifications.length > 0">
-        <router-link
+        <MessagePanel
           v-for="notification in notifications"
           :key="notification.id"
-          :to="constructMessagesPath(notification.messageId)"
           :class="$style.item"
           :data-unread="$boolAttr(!notification.read)"
+          title-type="user"
+          line-clamp-content
+          :message="toActivityMessage(notification)"
+          :to="constructMessagesPath(notification.messageId)"
         >
-          <UserIcon
-            :class="$style.icon"
-            :user-id="notification.authorId"
-            :size="28"
-          />
-          <div :class="$style.body">
-            <div :class="$style.meta">
-              <span :class="$style.userName">
-                {{ userDisplayName(notification.authorId) }}
-              </span>
-              <time :class="$style.time" :datetime="notification.notifiedAt">
-                {{ formatDate(notification.notifiedAt) }}
-              </time>
-            </div>
-            <div :class="$style.details">
-              <span :class="$style.channel">
-                {{ channelLabel(notification.channelId) }}
-              </span>
-              <span :class="$style.pattern">{{ notification.displayName }}</span>
-            </div>
-            <p :class="$style.content">{{ notification.content }}</p>
-          </div>
-        </router-link>
+          <template #footer>
+            <div :class="$style.gazerSeparator" />
+            <div :class="$style.gazerName">{{ notification.displayName }}</div>
+          </template>
+        </MessagePanel>
       </template>
       <EmptyState v-else> Gazer通知はありません </EmptyState>
     </transition-group>
@@ -49,18 +34,18 @@
 </template>
 
 <script lang="ts" setup>
+import type { ActivityTimelineMessage } from '@traptitech/traq'
+
 import { onMounted, watch } from 'vue'
 
 import AIcon from '/@/components/UI/AIcon.vue'
 import EmptyState from '/@/components/UI/EmptyState.vue'
-import UserIcon from '/@/components/UI/UserIcon.vue'
-import useChannelPath from '/@/composables/useChannelPath'
-import { getDateRepresentation } from '/@/lib/basic/date'
+import MessagePanel from '/@/components/UI/MessagePanel/MessagePanel.vue'
+import type { GazerNotificationItem } from '/@/lib/internalApi'
 import { constructMessagesPath } from '/@/router'
 import { useGazerNotificationsStore } from '/@/store/domain/gazerNotifications'
 import { useSubscriptionStore } from '/@/store/domain/subscription'
 import { useChannelsStore } from '/@/store/entities/channels'
-import { useUsersStore } from '/@/store/entities/users'
 
 const { notifications, loading, gatewayUserId, unreadCount } =
   useGazerNotificationsStore()
@@ -68,24 +53,17 @@ const { fetchNotifications, markRead } = useGazerNotificationsStore()
 const { userIdToDmChannelIdMap } = useChannelsStore()
 const { fetchChannels } = useChannelsStore()
 const { deleteUnreadChannelWithSend } = useSubscriptionStore()
-const { usersMap } = useUsersStore()
-const { fetchUser } = useUsersStore()
-const { channelIdToPathString } = useChannelPath()
 
-const formatDate = (value: string) => getDateRepresentation(value)
-const userDisplayName = (userId: string) =>
-  usersMap.value.get(userId)?.displayName ?? 'unknown'
-const channelLabel = (channelId: string) =>
-  channelIdToPathString(channelId, true) ?? '#unknown'
-
-const fetchNotificationUsers = async () => {
-  const userIds = new Set(notifications.value.map(n => n.authorId))
-  await Promise.all(
-    [...userIds]
-      .filter(userId => !usersMap.value.has(userId))
-      .map(userId => fetchUser({ userId, cacheStrategy: 'forceFetch' }))
-  )
-}
+const toActivityMessage = (
+  notification: GazerNotificationItem
+): ActivityTimelineMessage => ({
+  id: notification.messageId,
+  userId: notification.authorId,
+  channelId: notification.channelId,
+  content: notification.content,
+  createdAt: notification.createdAt,
+  updatedAt: notification.createdAt
+})
 
 const markGatewayRead = async () => {
   await markRead()
@@ -99,15 +77,10 @@ const markGatewayRead = async () => {
 
 const refresh = async () => {
   await Promise.all([fetchNotifications(), fetchChannels()])
-  await fetchNotificationUsers()
   await markGatewayRead()
 }
 
 onMounted(refresh)
-
-watch(notifications, () => {
-  void fetchNotificationUsers()
-})
 
 watch(unreadCount, count => {
   if (count > 0) {
@@ -149,94 +122,27 @@ watch(unreadCount, count => {
 }
 
 .item {
-  @include background-secondary;
-  position: relative;
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 10px;
-  padding: 10px;
-  margin: 10px 0;
-  border: 1px solid transparent;
+  display: block;
+  margin: 16px 0;
   border-radius: 6px;
 
   &[data-unread] {
-    border-color: $theme-accent-primary-default;
     box-shadow:
       inset 4px 0 0 $theme-accent-primary-default,
       0 0 0 1px $theme-accent-primary-default;
   }
 }
 
-.icon {
-  margin-top: 2px;
+.gazerSeparator {
+  @include background-secondary;
+  width: 100%;
+  height: 2px;
+  margin: 8px 0 4px;
 }
 
-.body {
-  min-width: 0;
-}
-
-.meta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.userName {
-  @include color-ui-primary;
-  flex: 1 1 auto;
-  min-width: 0;
-  font-weight: bold;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  margin-top: 4px;
-  min-width: 0;
-}
-
-.channel,
-.pattern {
-  @include size-caption;
-  max-width: 100%;
-  padding: 1px 6px;
-  border-radius: 4px;
-  overflow-wrap: anywhere;
-}
-
-.channel {
-  @include color-ui-secondary;
-  @include background-primary;
-}
-
-.pattern {
-  @include color-accent-primary;
-  border: 1px solid $theme-accent-primary-default;
-
-  .item[data-unread] & {
-    @include color-ui-primary;
-  }
-}
-
-.time {
+.gazerName {
   @include color-ui-secondary;
   @include size-caption;
-  flex: 0 0 auto;
-}
-
-.content {
-  @include color-ui-primary;
-  display: -webkit-box;
-  margin-top: 4px;
-  overflow: hidden;
   overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
 }
 </style>

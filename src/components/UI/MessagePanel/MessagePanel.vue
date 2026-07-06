@@ -42,6 +42,7 @@
         :content="message.content"
         :line-clamp-content="lineClampContent"
       />
+      <slot name="footer" />
     </div>
   </router-link>
 </template>
