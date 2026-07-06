@@ -1,23 +1,36 @@
 <template>
   <div>
-    <ChannelElement
-      v-for="channel in channels"
-      :key="channel.id"
-      :class="$style.element"
-      :channel="channel"
-      :is-opened="childrenShownChannels.has(channel.id)"
-      :show-shortened-path="showShortenedPath"
-      :show-topic="showTopic"
-      @click-hash="toggleChildren"
-    >
-      <SlideDown :is-open="childrenShownChannels.has(channel.id)">
-        <channel-tree
-          :class="$style.children"
-          :channels="channel.children"
-          :show-topic="showTopic && !preventChildTopic"
+    <template v-for="channel in channels" :key="channel.id">
+      <template v-if="channel.children.length > 0">
+        <ChannelFolderElement
+          :class="$style.element"
+          :channel="channel"
+          :is-opened="childrenShownChannels.has(channel.id)"
+          :show-shortened-path="showShortenedPath"
+          @click="toggleChildren"
         />
-      </SlideDown>
-    </ChannelElement>
+        <SlideDown :is-open="childrenShownChannels.has(channel.id)">
+          <div :class="$style.children">
+            <ChannelElement
+              :class="$style.element"
+              :channel="rootChannel(channel)"
+              :show-topic="showTopic"
+            />
+            <channel-tree
+              :channels="channel.children"
+              :show-topic="showTopic && !preventChildTopic"
+            />
+          </div>
+        </SlideDown>
+      </template>
+      <ChannelElement
+        v-else
+        :class="$style.element"
+        :channel="channel"
+        :show-shortened-path="showShortenedPath"
+        :show-topic="showTopic"
+      />
+    </template>
   </div>
 </template>
 
@@ -29,6 +42,7 @@ import type { ChannelTreeNode } from '/@/lib/channelTree'
 import type { ChannelId } from '/@/types/entity-ids'
 
 import ChannelElement from './ChannelElement.vue'
+import ChannelFolderElement from './ChannelFolderElement.vue'
 
 interface Props extends /* @vue-ignore */ HTMLAttributes {
   channels: ReadonlyArray<ChannelTreeNode>
@@ -51,6 +65,13 @@ const toggleChildren = (channelId: ChannelId) => {
     childrenShownChannels.value.add(channelId)
   }
 }
+
+const rootChannel = (channel: ChannelTreeNode): ChannelTreeNode => ({
+  ...channel,
+  name: '(root)',
+  children: [],
+  skippedAncestorNames: undefined
+})
 </script>
 
 <style lang="scss" module>
@@ -58,7 +79,23 @@ const toggleChildren = (channelId: ChannelId) => {
   margin: 4px 0;
 }
 
+$childrenIndent: 12px;
+$childrenContentIndent: 16px;
+$connectorLeft: 11px;
+$connectorWidth: 2px;
+
 .children {
-  margin-left: 12px;
+  position: relative;
+  margin-left: $childrenIndent;
+  padding-left: $childrenContentIndent;
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: $connectorLeft;
+    width: $connectorWidth;
+    background: $theme-ui-primary-background;
+  }
 }
 </style>
