@@ -1,0 +1,57 @@
+<template>
+  <OptionalRouterLink :to="dmChannelPath" :class="$style.container" block>
+    <UserIcon
+      :class="$style.icon"
+      :user-id="user.id"
+      :size="36"
+      :has-notification="hasNotification"
+    />
+    <UsersElementUserName :user="user" />
+  </OptionalRouterLink>
+</template>
+
+<script lang="ts" setup>
+import type { User } from '@traptitech/traq'
+
+import { computed } from 'vue'
+
+import OptionalRouterLink from '/@/components/UI/OptionalRouterLink.vue'
+import UserIcon from '/@/components/UI/UserIcon.vue'
+import { constructUserPath } from '/@/router'
+import { useSubscriptionStore } from '/@/store/domain/subscription'
+import { useChannelsStore } from '/@/store/entities/channels'
+
+import UsersElementUserName from './UsersElementUserName.vue'
+
+const props = defineProps<{
+  user: User
+}>()
+
+const { unreadChannelsMap } = useSubscriptionStore()
+const { userIdToDmChannelIdMap } = useChannelsStore()
+
+const dmChannelPath = computed(() => {
+  if (props.user.bot && props.user.name.startsWith('Webhook#')) {
+    return
+  }
+  return constructUserPath(props.user.name)
+})
+const dmChannelId = computed(() =>
+  userIdToDmChannelIdMap.value.get(props.user.id)
+)
+const hasNotification = computed(() =>
+  unreadChannelsMap.value.has(dmChannelId.value ?? '')
+)
+</script>
+
+<style lang="scss" module>
+.container {
+  @include color-ui-tertiary;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+.icon {
+  margin-right: 16px;
+}
+</style>

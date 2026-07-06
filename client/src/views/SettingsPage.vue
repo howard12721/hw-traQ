@@ -1,0 +1,68 @@
+<template>
+  <div v-if="isLoginCheckDone" :class="$style.container">
+    <MobileSettingModal v-if="isMobile">
+      <router-view />
+    </MobileSettingModal>
+    <DesktopSettingModal v-else>
+      <router-view />
+    </DesktopSettingModal>
+  </div>
+  <div v-else />
+</template>
+
+<script lang="ts">
+import type { Ref } from 'vue'
+import { ref, toRef, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+
+import useResponsive from '/@/composables/useResponsive'
+import { RouteName } from '/@/router'
+import { defaultSettingsName } from '/@/router/settings'
+
+import useLoginCheck from './composables/useLoginCheck'
+
+const useSettingsRootPathWatcher = (
+  isMobile: Ref<boolean>,
+  settingsRootShown: Ref<boolean>
+) => {
+  const route = useRoute()
+  const router = useRouter()
+  const redirectOrMarkRootIfNeeded = () => {
+    if (route.name !== RouteName.Settings) {
+      return
+    }
+    if (isMobile.value) {
+      settingsRootShown.value = true
+    } else {
+      router.replace({ name: defaultSettingsName })
+    }
+  }
+  watch([toRef(route, 'name'), isMobile], redirectOrMarkRootIfNeeded, {
+    immediate: true
+  })
+}
+</script>
+
+<script lang="ts" setup>
+import DesktopSettingModal from '/@/components/Settings/DesktopSetting.vue'
+import MobileSettingModal from '/@/components/Settings/MobileSetting.vue'
+
+const { isMobile } = useResponsive()
+
+const settingsRootShown = ref(false)
+onBeforeRouteLeave(() => {
+  settingsRootShown.value = false
+})
+
+useSettingsRootPathWatcher(isMobile, settingsRootShown)
+
+// ログイン必要ルート
+const { isLoginCheckDone } = useLoginCheck()
+</script>
+
+<style lang="scss" module>
+.container {
+  width: 100%;
+  height: 100%;
+}
+</style>

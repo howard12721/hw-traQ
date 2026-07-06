@@ -1,0 +1,139 @@
+<template>
+  <div :class="$style.container">
+    <LineEditor
+      v-model="name"
+      :class="$style.item"
+      label="グループ名"
+      :max-length="30"
+      :error-message="errorMessage"
+      @update:local-value="validateName"
+    />
+    <LineEditor
+      v-model="description"
+      :class="$style.item"
+      label="説明"
+      :max-length="100"
+    />
+    <LineEditor
+      v-model="type"
+      :class="$style.item"
+      label="タイプ"
+      :max-length="30"
+    />
+    <GroupAdminList
+      :class="$style.item"
+      :group-id="group.id"
+      :admins="group.admins"
+    />
+    <GroupMemberList
+      :class="$style.item"
+      :group-id="group.id"
+      :members="group.members"
+    />
+    <div :class="[$style.item, $style.deleteButtonWrapper]">
+      <FormButton
+        label="グループを削除"
+        type="secondary"
+        is-danger
+        @click="onDelete"
+      />
+    </div>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import type { UserGroup } from '@traptitech/traq'
+
+import { computed, ref } from 'vue'
+
+import FormButton from '/@/components/UI/FormButton.vue'
+import apis from '/@/lib/apis'
+import {
+  INVALID_GROUP_NAME_ERROR_MESSAGE,
+  isValidGroupName
+} from '/@/lib/validate'
+import { useToastStore } from '/@/store/ui/toast'
+
+import GroupAdminList from './GroupAdminList.vue'
+import GroupMemberList from './GroupMemberList.vue'
+import LineEditor from './LineEditor.vue'
+
+const props = defineProps<{
+  group: UserGroup
+}>()
+
+const { addErrorToast } = useToastStore()
+
+const update = async (key: keyof UserGroup, value: string) => {
+  try {
+    await apis.editUserGroup(props.group.id, { [key]: value })
+  } catch {
+    addErrorToast('グループの変更に失敗しました')
+  }
+}
+
+const name = computed<string>({
+  get() {
+    return props.group.name
+  },
+  set(v) {
+    update('name', v)
+  }
+})
+const description = computed<string>({
+  get() {
+    return props.group.description
+  },
+  set(v) {
+    update('description', v)
+  }
+})
+const type = computed<string>({
+  get() {
+    return props.group.type
+  },
+  set(v) {
+    update('type', v)
+  }
+})
+
+const errorMessage = ref<string | null>(null)
+
+const validateName = (name: string) => {
+  if (name === '') errorMessage.value = 'グループ名は空にできません'
+  else if (!isValidGroupName(name))
+    errorMessage.value = INVALID_GROUP_NAME_ERROR_MESSAGE
+  else errorMessage.value = null
+}
+
+const onDelete = async () => {
+  if (!confirm('本当にこのグループを削除しますか？')) return
+
+  try {
+    await apis.deleteUserGroup(props.group.id)
+  } catch {
+    addErrorToast('グループの削除に失敗しました')
+  }
+}
+</script>
+
+<style lang="scss" module>
+.container {
+  @include background-secondary;
+  padding: 16px 24px;
+  border-radius: 8px;
+}
+.item {
+  margin: 16px 0;
+  &:first-child {
+    margin-top: 0;
+  }
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+.deleteButtonWrapper {
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

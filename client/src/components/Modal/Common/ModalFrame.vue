@@ -1,0 +1,85 @@
+<template>
+  <ClickOutside stop @click-outside="clearModal">
+    <div :class="$style.container">
+      <CommonModalHeader
+        :class="$style.header"
+        :icon-name="iconName"
+        :icon-mdi="iconMdi"
+        :title="title"
+        :return-button="returnButton"
+        :edit-button="editButton"
+        @edit="emit('edit', $event)"
+      >
+        <template #subtitle>
+          <template v-if="subtitle">
+            {{ subtitle }}
+          </template>
+          <slot v-else name="subtitle" />
+        </template>
+      </CommonModalHeader>
+      <div :class="$style.body">
+        <slot />
+      </div>
+    </div>
+  </ClickOutside>
+</template>
+
+<script lang="ts" setup>
+import ClickOutside from '/@/components/UI/ClickOutside'
+import { useModalStore } from '/@/store/ui/modal'
+
+import CommonModalHeader from './ModalHeader.vue'
+
+withDefaults(
+  defineProps<{
+    iconMdi?: boolean
+    iconName?: string
+    title: string
+    subtitle?: string
+    returnButton?: boolean
+    editButton?: boolean
+  }>(),
+  {
+    iconMdi: false,
+    subtitle: '',
+    returnButton: false,
+    editButton: false
+  }
+)
+
+const emit = defineEmits<{
+  edit: [event: MouseEvent]
+}>()
+
+const { clearModal } = useModalStore()
+</script>
+
+<style lang="scss" module>
+.container {
+  @include background-primary;
+  display: flex;
+  flex-flow: column nowrap;
+  max-height: 480px;
+  max-width: 440px;
+  width: #{calc(100% - 32px)};
+  border-radius: 4px;
+  overflow: hidden;
+  border: {
+    style: solid;
+    width: 2px;
+    color: $theme-background-secondary-border;
+  }
+}
+.header {
+  flex-shrink: 0;
+}
+.body {
+  width: 100%;
+  padding: 16px;
+  overflow: {
+    x: hidden;
+    y: auto;
+  }
+  scrollbar-gutter: stable;
+}
+</style>

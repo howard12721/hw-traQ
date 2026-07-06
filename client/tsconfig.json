@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "strict": true,
+    "jsx": "preserve",
+    "allowJs": true,
+    "importHelpers": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "libReplacement": true,
+    "sourceMap": true,
+    "noEmit": true,
+    "types": [
+      "serviceworker",
+      "dom-screen-wake-lock",
+      "webappsec-credential-management"
+    ],
+    "paths": {
+      "/@/*": ["./src/*"]
+    },
+    "lib": ["esnext", "dom", "dom.iterable"]
+  },
+  "vueCompilerOptions": {
+    "strictTemplates": true,
+    "fallthroughAttributes": true,
+    "strictVModel": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "public/**/*.js"],
+  "exclude": ["node_modules"]
+}
