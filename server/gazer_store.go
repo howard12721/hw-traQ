@@ -101,7 +101,10 @@ WHERE name = ?`, name).Scan(&count)
 }
 
 func (s *gazerStore) get(ctx context.Context, userID string) (gazerSetting, error) {
-	setting := gazerSetting{UserID: userID}
+	setting := gazerSetting{
+		UserID:  userID,
+		Entries: []gazerEntry{},
+	}
 
 	err := s.db.QueryRowContext(ctx, `
 SELECT COALESCE(access_token, '')

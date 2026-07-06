@@ -104,6 +104,9 @@ func putGazerToken(service *gazerService) echo.HandlerFunc {
 }
 
 func newGazerResponse(service *gazerService, userID string, setting gazerSetting) gazerResponse {
+	if setting.Entries == nil {
+		setting.Entries = []gazerEntry{}
+	}
 	status := service.status(userID)
 	status.TokenConfigured = setting.AccessToken != ""
 	return gazerResponse{
