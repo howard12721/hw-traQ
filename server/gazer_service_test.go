@@ -26,3 +26,31 @@ func TestRefreshWithAccessTokenRequiresStoredToken(t *testing.T) {
 		t.Fatal("worker was not cancelled")
 	}
 }
+
+func TestCompileGazerEntriesSupportsLookbehind(t *testing.T) {
+	compiled, err := compileGazerEntries([]gazerEntry{
+		{
+			Pattern:     `(?<!!{"type":"user","raw":"@)howard`,
+			DisplayName: "howard",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	matched, err := compiled[0].pattern.MatchString("hello howard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !matched {
+		t.Fatal("pattern did not match plain text")
+	}
+
+	matched, err = compiled[0].pattern.MatchString(`!{"type":"user","raw":"@howard`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if matched {
+		t.Fatal("pattern matched mention payload")
+	}
+}

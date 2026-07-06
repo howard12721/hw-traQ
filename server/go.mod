@@ -3,6 +3,7 @@ module github.com/howard12721/hw-traQ/server
 go 1.26.4
 
 require (
+	github.com/dlclark/regexp2 v1.12.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/labstack/echo/v5 v5.2.1

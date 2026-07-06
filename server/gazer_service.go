@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/gorilla/websocket"
 )
+
+const gazerRegexMatchTimeout = 200 * time.Millisecond
 
 type gazerService struct {
 	store            *gazerStore
@@ -44,7 +46,7 @@ type messageCreatedBody struct {
 
 type compiledGazerEntry struct {
 	entry   gazerEntry
-	pattern *regexp.Regexp
+	pattern *regexp2.Regexp
 }
 
 var errInvalidGazerPattern = errors.New("invalid gazer pattern")
@@ -98,10 +100,8 @@ func (s *gazerService) save(ctx context.Context, user *traQUser, _ traQCredentia
 	setting.Entries = normalizeGazerEntries(setting.Entries)
 	setting.Enabled = len(setting.Entries) > 0
 	setting.AccessToken = current.AccessToken
-	for _, entry := range setting.Entries {
-		if _, err := regexp.Compile(entry.Pattern); err != nil {
-			return gazerSetting{}, errInvalidGazerPattern
-		}
+	if _, err := compileGazerEntries(setting.Entries); err != nil {
+		return gazerSetting{}, errInvalidGazerPattern
 	}
 	if err := s.store.upsert(ctx, setting); err != nil {
 		return gazerSetting{}, err
@@ -262,7 +262,7 @@ func boolSignature(v bool) string {
 func compileGazerEntries(entries []gazerEntry) ([]compiledGazerEntry, error) {
 	compiled := make([]compiledGazerEntry, 0, len(entries))
 	for _, entry := range entries {
-		pattern, err := regexp.Compile(entry.Pattern)
+		pattern, err := compileGazerPattern(entry.Pattern)
 		if err != nil {
 			return nil, err
 		}
@@ -271,6 +271,15 @@ func compileGazerEntries(entries []gazerEntry) ([]compiledGazerEntry, error) {
 			pattern: pattern,
 		})
 	}
+	return compiled, nil
+}
+
+func compileGazerPattern(pattern string) (*regexp2.Regexp, error) {
+	compiled, err := regexp2.Compile(pattern, regexp2.RE2)
+	if err != nil {
+		return nil, err
+	}
+	compiled.MatchTimeout = gazerRegexMatchTimeout
 	return compiled, nil
 }
 
@@ -378,7 +387,12 @@ func (s *gazerService) processMessage(ctx context.Context, user *traQUser, crede
 				continue
 			}
 		}
-		if entry.pattern.MatchString(message.Content) {
+		matched, err := entry.pattern.MatchString(message.Content)
+		if err != nil {
+			slog.Warn("gazer pattern match failed", "pattern", entry.entry.Pattern, "messageID", message.ID, "error", err)
+			continue
+		}
+		if matched {
 			matches = append(matches, entry.entry)
 		}
 	}
