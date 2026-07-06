@@ -4,6 +4,7 @@ import { computed } from 'vue'
 
 import { isDefined } from '/@/lib/basic/array'
 import { useBrowserSettings } from '/@/store/app/browserSettings'
+import { useGazerNotificationsStore } from '/@/store/domain/gazerNotifications'
 import { useStaredChannels } from '/@/store/domain/staredChannels'
 import { useSubscriptionStore } from '/@/store/domain/subscription'
 import { useChannelsStore } from '/@/store/entities/channels'
@@ -12,6 +13,7 @@ const useChannelsWithNotification = () => {
   const { unreadChannelsMap, subscriptionMap } = useSubscriptionStore()
   const { channelsMap, dmChannelsMap } = useChannelsStore()
   const starredChannelStore = useStaredChannels()
+  const { isGatewayUserId } = useGazerNotificationsStore()
 
   const mode = computed<'starred' | 'notified' | 'default' | 'both'>(() => {
     const { prioritizeNotifiedChannel, prioritizeStarredChannel } =
@@ -110,6 +112,7 @@ const useChannelsWithNotification = () => {
   const dmChannelsWithNotification = computed(() =>
     sortedUnreadChannels.value
       .map(unread => dmChannelsMap.value.get(unread.channelId ?? ''))
+      .filter(dmChannel => !dmChannel || !isGatewayUserId(dmChannel.userId))
       .filter(isDefined)
   )
 

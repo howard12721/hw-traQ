@@ -37,6 +37,13 @@ type traQDMChannel struct {
 	UserID string `json:"userId"`
 }
 
+type traQOAuthToken struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresIn   int    `json:"expires_in,omitempty"`
+	Scope       string `json:"scope,omitempty"`
+}
+
 func newTraQClient(apiBaseURL, wsURL, botToken string) (*traQClient, error) {
 	apiBaseURL, err := normalizeTraQAPIBaseURL(apiBaseURL)
 	if err != nil {
@@ -117,6 +124,35 @@ func (c *traQClient) getBotMe(ctx context.Context) (*traQUser, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (c *traQClient) exchangeOAuthCode(ctx context.Context, clientID, code, codeVerifier, redirectURI string) (*traQOAuthToken, error) {
+	form := url.Values{}
+	form.Set("grant_type", "authorization_code")
+	form.Set("client_id", clientID)
+	form.Set("code", code)
+	form.Set("code_verifier", codeVerifier)
+	form.Set("redirect_uri", redirectURI)
+
+	var token traQOAuthToken
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		c.apiBaseURL+"/oauth2/token",
+		strings.NewReader(form.Encode()),
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err := c.doJSON(req, &token); err != nil {
+		return nil, err
+	}
+	if token.AccessToken == "" {
+		return nil, fmt.Errorf("traQ OAuth token response does not contain access_token")
+	}
+	return &token, nil
 }
 
 func (c *traQClient) getBotDMChannel(ctx context.Context, userID string) (*traQDMChannel, error) {

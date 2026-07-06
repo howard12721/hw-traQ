@@ -4,6 +4,10 @@ export const INTERNAL_GAZER_PATH = '/internal/v1/gazer'
 export const INTERNAL_GAZER_TOKEN_PATH = '/internal/v1/gazer/token'
 export const INTERNAL_GAZER_OAUTH_CLIENT_PATH =
   '/internal/v1/gazer/oauth-client'
+export const INTERNAL_GAZER_NOTIFICATIONS_PATH =
+  '/internal/v1/gazer/notifications'
+export const INTERNAL_GAZER_NOTIFICATIONS_READ_PATH =
+  '/internal/v1/gazer/notifications/read'
 
 type InternalPingResponse = {
   message: string
@@ -39,11 +43,35 @@ export type GazerSetting = {
 export type GazerStatus = {
   running: boolean
   tokenConfigured: boolean
+  botUserId?: string
 }
 
 export type GazerResponse = {
   setting: GazerSetting
   status: GazerStatus
+}
+
+export type GazerNotificationItem = {
+  id: number
+  messageId: string
+  channelId: string
+  authorId: string
+  content: string
+  pattern: string
+  createdAt: string
+  notifiedAt: string
+  read: boolean
+}
+
+export type GazerNotificationsResponse = {
+  notifications: GazerNotificationItem[]
+  botUserId?: string
+}
+
+export type GazerTokenRequest = {
+  code: string
+  codeVerifier: string
+  redirectUri: string
 }
 
 type GazerOAuthClientResponse = {
@@ -124,7 +152,7 @@ export const putGazer = async (setting: { entries: GazerEntry[] }) => {
   return (await res.json()) as GazerResponse
 }
 
-export const putGazerToken = async (accessToken: string) => {
+export const putGazerToken = async (request: GazerTokenRequest) => {
   const res = await fetch(INTERNAL_GAZER_TOKEN_PATH, {
     method: 'PUT',
     cache: 'no-store',
@@ -133,7 +161,7 @@ export const putGazerToken = async (accessToken: string) => {
       Accept: 'application/json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ accessToken })
+    body: JSON.stringify(request)
   })
 
   if (!res.ok) {
@@ -157,4 +185,32 @@ export const getGazerOAuthClient = async () => {
   }
 
   return (await res.json()) as GazerOAuthClientResponse
+}
+
+export const getGazerNotifications = async () => {
+  const res = await fetch(INTERNAL_GAZER_NOTIFICATIONS_PATH, {
+    cache: 'no-store',
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json'
+    }
+  })
+
+  if (!res.ok) {
+    throw new Error('failed to get gazer notifications')
+  }
+
+  return (await res.json()) as GazerNotificationsResponse
+}
+
+export const markGazerNotificationsRead = async () => {
+  const res = await fetch(INTERNAL_GAZER_NOTIFICATIONS_READ_PATH, {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'same-origin'
+  })
+
+  if (!res.ok) {
+    throw new Error('failed to mark gazer notifications as read')
+  }
 }

@@ -16,12 +16,19 @@ type gazerOAuthClientResponse struct {
 	ClientID string `json:"clientId"`
 }
 
+type gazerNotificationsResponse struct {
+	Notifications []gazerNotification `json:"notifications"`
+	BotUserID     string              `json:"botUserId,omitempty"`
+}
+
 type saveGazerRequest struct {
 	Entries []gazerEntry `json:"entries"`
 }
 
 type saveGazerTokenRequest struct {
-	AccessToken string `json:"accessToken"`
+	Code         string `json:"code"`
+	CodeVerifier string `json:"codeVerifier"`
+	RedirectURI  string `json:"redirectUri"`
 }
 
 func getGazer(service *gazerService) echo.HandlerFunc {
@@ -36,6 +43,7 @@ func getGazer(service *gazerService) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get gazer setting")
 		}
 		service.refreshWithBestCredential(user, credentialFromRequest(c.Request()), setting)
+		service.refreshBotUserID(c.Request().Context())
 
 		return c.JSON(http.StatusOK, newGazerResponse(service, user.ID, setting))
 	}
@@ -71,12 +79,13 @@ func putGazer(service *gazerService) echo.HandlerFunc {
 			}
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to save gazer setting")
 		}
+		service.refreshBotUserID(c.Request().Context())
 
 		return c.JSON(http.StatusOK, newGazerResponse(service, user.ID, setting))
 	}
 }
 
-func putGazerToken(service *gazerService) echo.HandlerFunc {
+func putGazerToken(service *gazerService, clientID string) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		user, ok := currentTraQUser(c)
 		if !ok {
@@ -87,19 +96,57 @@ func putGazerToken(service *gazerService) echo.HandlerFunc {
 		if err := c.Bind(&req); err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "invalid request")
 		}
-		if req.AccessToken == "" {
-			return echo.NewHTTPError(http.StatusBadRequest, "access token is required")
+		if clientID == "" {
+			return echo.NewHTTPError(http.StatusServiceUnavailable, "gazer oauth client is not configured")
+		}
+		if req.Code == "" || req.CodeVerifier == "" || req.RedirectURI == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "oauth code, code verifier and redirect uri are required")
 		}
 
-		setting, err := service.saveAccessToken(c.Request().Context(), user, req.AccessToken)
+		setting, err := service.saveAuthorizationCode(c.Request().Context(), user, clientID, req.Code, req.CodeVerifier, req.RedirectURI)
 		if err != nil {
 			if errors.Is(err, errUnauthenticated) {
-				return echo.NewHTTPError(http.StatusUnauthorized, "invalid access token")
+				return echo.NewHTTPError(http.StatusUnauthorized, "invalid oauth code")
 			}
 			return echo.NewHTTPError(http.StatusBadRequest, "failed to save gazer access token")
 		}
+		service.refreshBotUserID(c.Request().Context())
 
 		return c.JSON(http.StatusOK, newGazerResponse(service, user.ID, setting))
+	}
+}
+
+func getGazerNotifications(service *gazerService) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		user, ok := currentTraQUser(c)
+		if !ok {
+			return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+		}
+		service.refreshBotUserID(c.Request().Context())
+
+		notifications, err := service.store.listNotifications(c.Request().Context(), user.ID, 100)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get gazer notifications")
+		}
+		status := service.status(user.ID)
+		return c.JSON(http.StatusOK, gazerNotificationsResponse{
+			Notifications: notifications,
+			BotUserID:     status.BotUserID,
+		})
+	}
+}
+
+func postGazerNotificationsRead(service *gazerService) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		user, ok := currentTraQUser(c)
+		if !ok {
+			return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+		}
+
+		if err := service.store.markNotificationsRead(c.Request().Context(), user.ID); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to mark gazer notifications as read")
+		}
+		return c.NoContent(http.StatusNoContent)
 	}
 }
 

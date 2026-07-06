@@ -14,6 +14,7 @@
       />
     </keep-alive>
     <UsersTab v-if="currentNavigation === 'users'" :class="$style.content" />
+    <GazerTab v-if="currentNavigation === 'gazer'" :class="$style.content" />
     <ClipFoldersTab
       v-if="currentNavigation === 'clips'"
       :class="$style.content"
@@ -27,6 +28,7 @@ import type { NavigationItemType } from '/@/components/Main/NavigationBar/compos
 import ActivityTab from './NavigationContent/ActivityTab.vue'
 import ChannelsTab from './NavigationContent/ChannelsTab.vue'
 import ClipFoldersTab from './NavigationContent/ClipFoldersTab.vue'
+import GazerTab from './NavigationContent/GazerTab.vue'
 import HomeTab from './NavigationContent/HomeTab.vue'
 import UsersTab from './NavigationContent/UsersTab.vue'
 import NavigationContentTitle from './NavigationContentTitle.vue'

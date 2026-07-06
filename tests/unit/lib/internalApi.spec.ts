@@ -1,4 +1,6 @@
 import {
+  INTERNAL_GAZER_NOTIFICATIONS_PATH,
+  INTERNAL_GAZER_NOTIFICATIONS_READ_PATH,
   INTERNAL_GAZER_OAUTH_CLIENT_PATH,
   INTERNAL_GAZER_PATH,
   INTERNAL_GAZER_TOKEN_PATH,
@@ -6,8 +8,10 @@ import {
   INTERNAL_PING_PATH,
   checkInternalBackend,
   getGazer,
+  getGazerNotifications,
   getGazerOAuthClient,
   getInternalMe,
+  markGazerNotificationsRead,
   pingInternalBackend,
   putGazer,
   putGazerToken
@@ -147,7 +151,8 @@ describe('internalApi', () => {
           },
           status: {
             running: true,
-            tokenConfigured: true
+            tokenConfigured: true,
+            botUserId: 'bot-user-id'
           }
         }),
         {
@@ -173,7 +178,8 @@ describe('internalApi', () => {
       },
       status: {
         running: true,
-        tokenConfigured: true
+        tokenConfigured: true,
+        botUserId: 'bot-user-id'
       }
     })
     expect(fetchMock).toHaveBeenCalledWith(INTERNAL_GAZER_PATH, {
@@ -334,7 +340,13 @@ describe('internalApi', () => {
       )
     )
 
-    await expect(putGazerToken('access-token')).resolves.toEqual({
+    await expect(
+      putGazerToken({
+        code: 'oauth-code',
+        codeVerifier: 'code-verifier',
+        redirectUri: 'https://example.com/settings/gazer'
+      })
+    ).resolves.toEqual({
       setting: {
         entries: [
           {
@@ -360,8 +372,77 @@ describe('internalApi', () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        accessToken: 'access-token'
+        code: 'oauth-code',
+        codeVerifier: 'code-verifier',
+        redirectUri: 'https://example.com/settings/gazer'
       })
     })
+  })
+
+  it('gets gazer notifications', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          notifications: [
+            {
+              id: 1,
+              messageId: 'message-id',
+              channelId: 'channel-id',
+              authorId: 'author-id',
+              content: '障害対応お願いします',
+              pattern: '障害|deploy',
+              createdAt: '2026-07-06T12:34:56.000Z',
+              notifiedAt: '2026-07-06T12:34:57.000Z',
+              read: false
+            }
+          ],
+          botUserId: 'bot-user-id'
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+    )
+
+    await expect(getGazerNotifications()).resolves.toEqual({
+      notifications: [
+        {
+          id: 1,
+          messageId: 'message-id',
+          channelId: 'channel-id',
+          authorId: 'author-id',
+          content: '障害対応お願いします',
+          pattern: '障害|deploy',
+          createdAt: '2026-07-06T12:34:56.000Z',
+          notifiedAt: '2026-07-06T12:34:57.000Z',
+          read: false
+        }
+      ],
+      botUserId: 'bot-user-id'
+    })
+    expect(fetchMock).toHaveBeenCalledWith(INTERNAL_GAZER_NOTIFICATIONS_PATH, {
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json'
+      }
+    })
+  })
+
+  it('marks gazer notifications as read', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+
+    await expect(markGazerNotificationsRead()).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledWith(
+      INTERNAL_GAZER_NOTIFICATIONS_READ_PATH,
+      {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'same-origin'
+      }
+    )
   })
 })

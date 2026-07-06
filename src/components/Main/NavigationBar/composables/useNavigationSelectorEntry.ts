@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue'
 import { useQall } from '/@/composables/qall/useQall'
 import { isDefined } from '/@/lib/basic/array'
 import type { ThemeClaim } from '/@/lib/styles'
+import { useGazerNotificationsStore } from '/@/store/domain/gazerNotifications'
 import { useSubscriptionStore } from '/@/store/domain/subscription'
 import { useChannelsStore } from '/@/store/entities/channels'
 import { useAudioController } from '/@/store/ui/audioController'
@@ -32,6 +33,7 @@ export type EphemeralNavigationSelectorEntry = {
 export const createItems = (notificationState: {
   channel: boolean
   dm: boolean
+  gazer: boolean
 }): NavigationSelectorEntry[] => [
   {
     type: 'home',
@@ -51,6 +53,12 @@ export const createItems = (notificationState: {
     type: 'users',
     iconName: 'user',
     hasNotification: notificationState.dm
+  },
+  {
+    type: 'gazer',
+    iconName: 'eye-outline',
+    iconMdi: true,
+    hasNotification: notificationState.gazer
   },
   {
     type: 'clips',
@@ -84,6 +92,7 @@ export const ephemeralItems: Record<
 const useNavigationSelectorEntry = () => {
   const { unreadChannelsMap } = useSubscriptionStore()
   const { channelsMap, dmChannelsMap } = useChannelsStore()
+  const { isGatewayUserId, unreadCount } = useGazerNotificationsStore()
   const { hasInputChannel } = useMessageInputStateStore()
   const { fileId } = useAudioController()
   const { getQallingState } = useQall()
@@ -95,7 +104,18 @@ const useNavigationSelectorEntry = () => {
       unreadChannels.value.some(c => channelsMap.value.has(c.channelId))
     ),
     dm: computed(() =>
-      unreadChannels.value.some(c => dmChannelsMap.value.has(c.channelId))
+      unreadChannels.value.some(c => {
+        const dmChannel = dmChannelsMap.value.get(c.channelId)
+        return !!dmChannel && !isGatewayUserId(dmChannel.userId)
+      })
+    ),
+    gazer: computed(
+      () =>
+        unreadCount.value > 0 ||
+        unreadChannels.value.some(c => {
+          const dmChannel = dmChannelsMap.value.get(c.channelId)
+          return !!dmChannel && isGatewayUserId(dmChannel.userId)
+        })
     )
   })
   const entries = computed(() => createItems(notificationState))

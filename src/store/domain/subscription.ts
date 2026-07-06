@@ -16,6 +16,7 @@ import { convertToRefsStore } from '/@/store/utils/convertToRefsStore'
 import { useTrueChangedPromise } from '/@/store/utils/promise'
 import type { ChannelId, DMChannelId } from '/@/types/entity-ids'
 
+import { useGazerNotificationsStore } from './gazerNotifications'
 import { useMeStore } from './me'
 import { useViewStatesStore } from './viewStates'
 
@@ -39,6 +40,7 @@ const updateBadge = async (
 
 const useSubscriptionStorePinia = defineStore('domain/subscription', () => {
   const channelsStore = useChannelsStore()
+  const gazerNotificationsStore = useGazerNotificationsStore()
   const meStore = useMeStore()
   const viewStatesStore = useViewStatesStore()
 
@@ -193,6 +195,8 @@ const useSubscriptionStorePinia = defineStore('domain/subscription', () => {
     if (viewStatesStore.monitoringChannels.value.has(message.channelId)) return
     // 自分の投稿は未読に追加しない
     if (meStore.myId.value === message.userId) return
+    // GazerのBOT DMはプッシュ通知用ゲートウェイとして扱い、通常DM未読には出さない
+    if (gazerNotificationsStore.isGatewayUserId(message.userId)) return
 
     const noticeable =
       isCiting ||

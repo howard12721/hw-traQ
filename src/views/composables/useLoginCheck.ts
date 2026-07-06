@@ -4,6 +4,7 @@ import { createSingleflight } from '/@/lib/basic/async'
 import { getGazer } from '/@/lib/internalApi'
 import { setupWebSocket } from '/@/lib/websocket'
 import router, { RouteName } from '/@/router'
+import { useGazerNotificationsStore } from '/@/store/domain/gazerNotifications'
 import { useMeStore } from '/@/store/domain/me'
 
 /**
@@ -24,7 +25,10 @@ const performLoginCheck = createSingleflight(
 
 const syncGazerSession = createSingleflight(async () => {
   try {
-    await getGazer()
+    const res = await getGazer()
+    const gazerNotificationsStore = useGazerNotificationsStore()
+    gazerNotificationsStore.applyGazerResponse(res)
+    await gazerNotificationsStore.fetchNotifications()
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn('Failed to sync gazer session', { cause: e })

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -21,29 +19,29 @@ func TestFormatGazerNotification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(content, gazerNotificationPrefix) {
-		t.Fatalf("content = %q, want prefix %q", content, gazerNotificationPrefix)
+	if !strings.HasPrefix(content, "Gazer通知:") {
+		t.Fatalf("content = %q, want readable notification body", content)
+	}
+	if !strings.Contains(content, "障害|deploy") {
+		t.Fatalf("content = %q, want pattern", content)
 	}
 	if !strings.Contains(content, "/messages/message-id") {
 		t.Fatalf("content = %q, want message link", content)
 	}
+	if strings.Contains(content, "hw-traq-gazer") || strings.Contains(content, "eyJ") {
+		t.Fatalf("content = %q, want no machine-readable payload", content)
+	}
+}
 
-	end := strings.Index(content, " -->")
-	if end == -1 {
-		t.Fatalf("content = %q, want payload terminator", content)
+func TestGazerNotificationExcerpt(t *testing.T) {
+	if got := gazerNotificationExcerpt("hello\n  world", 80); got != "hello world" {
+		t.Fatalf("excerpt = %q, want normalized text", got)
 	}
-	encoded := strings.TrimPrefix(content[:end], gazerNotificationPrefix)
-	raw, err := base64.RawURLEncoding.DecodeString(encoded)
-	if err != nil {
-		t.Fatal(err)
+	if got := gazerNotificationExcerpt("", 80); got != "(本文なし)" {
+		t.Fatalf("excerpt = %q, want empty fallback", got)
 	}
-
-	var got gazerNotificationPayload
-	if err := json.Unmarshal(raw, &got); err != nil {
-		t.Fatal(err)
-	}
-	if got != payload {
-		t.Fatalf("payload = %#v, want %#v", got, payload)
+	if got := gazerNotificationExcerpt("1234567890", 4); got != "1234..." {
+		t.Fatalf("excerpt = %q, want truncated text", got)
 	}
 }
 

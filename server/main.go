@@ -99,8 +99,10 @@ func newServerWithConfig(config serverConfig) *echo.Echo {
 	if config.gazer != nil {
 		v1.GET("/gazer", getGazer(config.gazer), requireTraQUser(config.authenticator))
 		v1.PUT("/gazer", putGazer(config.gazer), requireTraQUser(config.authenticator))
-		v1.PUT("/gazer/token", putGazerToken(config.gazer), requireTraQUser(config.authenticator))
+		v1.PUT("/gazer/token", putGazerToken(config.gazer, config.gazerClientID), requireTraQUser(config.authenticator))
 		v1.GET("/gazer/oauth-client", getGazerOAuthClient(config.gazerClientID), requireTraQUser(config.authenticator))
+		v1.GET("/gazer/notifications", getGazerNotifications(config.gazer), requireTraQUser(config.authenticator))
+		v1.POST("/gazer/notifications/read", postGazerNotificationsRead(config.gazer), requireTraQUser(config.authenticator))
 	}
 
 	return e

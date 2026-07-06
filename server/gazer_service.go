@@ -14,15 +14,18 @@ import (
 )
 
 type gazerService struct {
-	store  *gazerStore
-	traq   *traQClient
-	mu     sync.Mutex
-	active map[string]*gazerWorker
+	store            *gazerStore
+	traq             *traQClient
+	mu               sync.Mutex
+	active           map[string]*gazerWorker
+	botUserID        string
+	botUserIDFetched bool
 }
 
 type gazerStatus struct {
-	Running         bool `json:"running"`
-	TokenConfigured bool `json:"tokenConfigured"`
+	Running         bool   `json:"running"`
+	TokenConfigured bool   `json:"tokenConfigured"`
+	BotUserID       string `json:"botUserId,omitempty"`
 }
 
 type gazerWorker struct {
@@ -58,7 +61,31 @@ func (s *gazerService) status(userID string) gazerStatus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_, running := s.active[userID]
-	return gazerStatus{Running: running}
+	return gazerStatus{Running: running, BotUserID: s.botUserID}
+}
+
+func (s *gazerService) refreshBotUserID(ctx context.Context) {
+	if s == nil || s.traq == nil || s.traq.botToken == "" {
+		return
+	}
+
+	s.mu.Lock()
+	if s.botUserIDFetched {
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+
+	bot, err := s.traq.getBotMe(ctx)
+	if err != nil {
+		slog.Warn("gazer failed to fetch bot user", "error", err)
+		return
+	}
+
+	s.mu.Lock()
+	s.botUserID = bot.ID
+	s.botUserIDFetched = true
+	s.mu.Unlock()
 }
 
 func (s *gazerService) save(ctx context.Context, user *traQUser, credential traQCredential, setting gazerSetting) (gazerSetting, error) {
@@ -102,6 +129,14 @@ func (s *gazerService) saveAccessToken(ctx context.Context, user *traQUser, acce
 	}
 	s.refresh(user, credential, setting)
 	return setting, nil
+}
+
+func (s *gazerService) saveAuthorizationCode(ctx context.Context, user *traQUser, clientID, code, codeVerifier, redirectURI string) (gazerSetting, error) {
+	token, err := s.traq.exchangeOAuthCode(ctx, clientID, code, codeVerifier, redirectURI)
+	if err != nil {
+		return gazerSetting{}, err
+	}
+	return s.saveAccessToken(ctx, user, token.AccessToken)
 }
 
 func (s *gazerService) restore(ctx context.Context) error {
@@ -358,6 +393,17 @@ func (s *gazerService) processMessage(ctx context.Context, user *traQUser, crede
 			Content:   message.Content,
 			Pattern:   entry.Pattern,
 			CreatedAt: message.CreatedAt,
+		}
+		if err := s.store.createNotification(ctx, gazerNotification{
+			UserID:    user.ID,
+			MessageID: payload.MessageID,
+			ChannelID: payload.ChannelID,
+			AuthorID:  payload.AuthorID,
+			Content:   payload.Content,
+			Pattern:   payload.Pattern,
+			CreatedAt: payload.CreatedAt,
+		}); err != nil {
+			slog.Warn("gazer failed to save notification", "userID", user.ID, "messageID", message.ID, "error", err)
 		}
 		content, err := formatGazerNotification(payload)
 		if err != nil {

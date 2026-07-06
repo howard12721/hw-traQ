@@ -1,12 +1,9 @@
 package main
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"strings"
 )
-
-const gazerNotificationPrefix = "<!-- hw-traq-gazer:"
 
 type gazerNotificationPayload struct {
 	MessageID string `json:"messageId"`
@@ -18,17 +15,22 @@ type gazerNotificationPayload struct {
 }
 
 func formatGazerNotification(payload gazerNotificationPayload) (string, error) {
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-	encoded := base64.RawURLEncoding.EncodeToString(raw)
 	return fmt.Sprintf(
-		"%s%s -->\nGazer matched `%s`\n\n> %s\n\n/messages/%s",
-		gazerNotificationPrefix,
-		encoded,
+		"Gazer通知: 「%s」に一致しました\n%s\n元メッセージ: /messages/%s\nこのDMはプッシュ通知用のゲートウェイです。アプリ内ではサイドバーのGazerタブに表示されます。",
 		payload.Pattern,
-		payload.Content,
+		gazerNotificationExcerpt(payload.Content, 80),
 		payload.MessageID,
 	), nil
+}
+
+func gazerNotificationExcerpt(content string, maxRunes int) string {
+	normalized := strings.Join(strings.Fields(content), " ")
+	if normalized == "" {
+		return "(本文なし)"
+	}
+	runes := []rune(normalized)
+	if len(runes) <= maxRunes {
+		return normalized
+	}
+	return string(runes[:maxRunes]) + "..."
 }

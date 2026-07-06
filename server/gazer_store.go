@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
-const gazerSchemaMigration = "20260706_gazer_schema"
+const gazerSchemaMigration = "20260706_gazer_schema_v2"
 
 type gazerSetting struct {
 	UserID      string       `json:"-"`
@@ -19,6 +20,19 @@ type gazerEntry struct {
 	Pattern     string `json:"pattern"`
 	IncludeSelf bool   `json:"includeSelf"`
 	IncludeBots bool   `json:"includeBots"`
+}
+
+type gazerNotification struct {
+	ID         int64  `json:"id"`
+	UserID     string `json:"-"`
+	MessageID  string `json:"messageId"`
+	ChannelID  string `json:"channelId"`
+	AuthorID   string `json:"authorId"`
+	Content    string `json:"content"`
+	Pattern    string `json:"pattern"`
+	CreatedAt  string `json:"createdAt"`
+	NotifiedAt string `json:"notifiedAt"`
+	Read       bool   `json:"read"`
 }
 
 type gazerStore struct {
@@ -67,6 +81,24 @@ CREATE TABLE IF NOT EXISTS gazer_entries (
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_gazer_entries_user_id_position (user_id, position)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`); err != nil {
+		return err
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+CREATE TABLE IF NOT EXISTS gazer_notifications (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
+  message_id VARCHAR(36) NOT NULL,
+  channel_id VARCHAR(36) NOT NULL,
+  author_id VARCHAR(36) NOT NULL,
+  content MEDIUMTEXT NOT NULL,
+  pattern TEXT NOT NULL,
+  message_created_at VARCHAR(64) NOT NULL,
+  notified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  read_at TIMESTAMP NULL DEFAULT NULL,
+  INDEX idx_gazer_notifications_user_id_id (user_id, id),
+  INDEX idx_gazer_notifications_user_id_read_at (user_id, read_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`); err != nil {
 		return err
 	}
@@ -212,4 +244,84 @@ WHERE access_token IS NOT NULL AND access_token <> ''`)
 		}
 	}
 	return settings, rows.Err()
+}
+
+func (s *gazerStore) createNotification(ctx context.Context, notification gazerNotification) error {
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO gazer_notifications (
+  user_id,
+  message_id,
+  channel_id,
+  author_id,
+  content,
+  pattern,
+  message_created_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		notification.UserID,
+		notification.MessageID,
+		notification.ChannelID,
+		notification.AuthorID,
+		notification.Content,
+		notification.Pattern,
+		notification.CreatedAt,
+	)
+	return err
+}
+
+func (s *gazerStore) listNotifications(ctx context.Context, userID string, limit int) ([]gazerNotification, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `
+SELECT
+  id,
+  user_id,
+  message_id,
+  channel_id,
+  author_id,
+  content,
+  pattern,
+  message_created_at,
+  notified_at,
+  read_at IS NOT NULL
+FROM gazer_notifications
+WHERE user_id = ?
+ORDER BY id DESC
+LIMIT ?`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	notifications := []gazerNotification{}
+	for rows.Next() {
+		var notification gazerNotification
+		var notifiedAt time.Time
+		if err := rows.Scan(
+			&notification.ID,
+			&notification.UserID,
+			&notification.MessageID,
+			&notification.ChannelID,
+			&notification.AuthorID,
+			&notification.Content,
+			&notification.Pattern,
+			&notification.CreatedAt,
+			&notifiedAt,
+			&notification.Read,
+		); err != nil {
+			return nil, err
+		}
+		notification.NotifiedAt = notifiedAt.Format(time.RFC3339Nano)
+		notifications = append(notifications, notification)
+	}
+	return notifications, rows.Err()
+}
+
+func (s *gazerStore) markNotificationsRead(ctx context.Context, userID string) error {
+	_, err := s.db.ExecContext(ctx, `
+UPDATE gazer_notifications
+SET read_at = CURRENT_TIMESTAMP
+WHERE user_id = ? AND read_at IS NULL`, userID)
+	return err
 }

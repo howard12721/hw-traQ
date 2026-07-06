@@ -80,6 +80,7 @@ import {
 } from '/@/lib/gazerOAuth'
 import type { GazerEntry } from '/@/lib/internalApi'
 import { getGazer, putGazer, putGazerToken } from '/@/lib/internalApi'
+import { useGazerNotificationsStore } from '/@/store/domain/gazerNotifications'
 import { useToastStore } from '/@/store/ui/toast'
 
 type GazerEntryState = GazerEntry & {
@@ -108,6 +109,7 @@ const issuingToken = ref(false)
 const errorMessage = ref('')
 
 const { addSuccessToast, addErrorToast } = useToastStore()
+const { applyGazerResponse } = useGazerNotificationsStore()
 
 const statusLabel = computed(() => {
   if (status.running) return '監視中'
@@ -119,6 +121,7 @@ const tokenLabel = computed(() =>
 )
 
 const applyResponse = (res: Awaited<ReturnType<typeof getGazer>>) => {
+  applyGazerResponse(res)
   const entries = res.setting.entries.map(entry => createEntry(entry))
   state.entries = entries.length > 0 ? entries : [createEntry()]
   status.enabled = res.setting.enabled
@@ -179,9 +182,9 @@ const save = async () => {
 
 const handleTokenCallback = async () => {
   try {
-    const accessToken = consumeGazerTokenCallback()
-    if (!accessToken) return
-    applyResponse(await putGazerToken(accessToken))
+    const callback = consumeGazerTokenCallback()
+    if (!callback) return
+    applyResponse(await putGazerToken(callback))
     addSuccessToast('Gazer用アクセストークンを保存しました')
   } catch (e) {
     errorMessage.value = 'Gazer用アクセストークンを保存できませんでした'

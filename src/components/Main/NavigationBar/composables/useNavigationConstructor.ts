@@ -5,6 +5,7 @@ export type NavigationItemType =
   | 'channels'
   | 'activity'
   | 'users'
+  | 'gazer'
   | 'clips'
 
 /**
@@ -24,6 +25,7 @@ export const navigationTypeNameMap: Record<NavigationItemType, string> = {
   channels: 'チャンネル',
   activity: 'アクティビティ',
   users: 'ユーザー',
+  gazer: 'Gazer',
   clips: 'クリップ'
 }
 

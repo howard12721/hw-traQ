@@ -8,11 +8,7 @@
       :updated-at="message.updatedAt"
     />
     <div :class="$style.messageContents">
-      <GazerNotification
-        v-if="gazerNotification && !isEditing"
-        :notification="gazerNotification"
-      />
-      <MarkdownContent v-else v-show="!isEditing" :content="renderedContent" />
+      <MarkdownContent v-show="!isEditing" :content="renderedContent" />
       <MessageEditor
         v-if="isEditing"
         :raw-content="message.content"
@@ -21,19 +17,19 @@
         @finish-editing="finishEditing"
       />
       <MessageQuoteList
-        v-if="!gazerNotification && embeddingsState.quoteMessageIds.length > 0"
+        v-if="embeddingsState.quoteMessageIds.length > 0"
         :class="$style.messageEmbeddingsList"
         :parent-message-channel-id="message.channelId"
         :message-ids="embeddingsState.quoteMessageIds"
       />
       <MessageFileList
-        v-if="!gazerNotification && embeddingsState.fileIds.length > 0"
+        v-if="embeddingsState.fileIds.length > 0"
         :class="$style.messageEmbeddingsList"
         :channel-id="message.channelId"
         :file-ids="embeddingsState.fileIds"
       />
       <MessageOgpList
-        v-if="!gazerNotification && embeddingsState.externalUrls.length > 0"
+        v-if="embeddingsState.externalUrls.length > 0"
         :external-urls="embeddingsState.externalUrls"
       />
     </div>
@@ -46,7 +42,6 @@ import { computed } from 'vue'
 import MarkdownContent from '/@/components/UI/MarkdownContent.vue'
 import UserIcon from '/@/components/UI/UserIcon.vue'
 import useEmbeddings from '/@/composables/message/useEmbeddings'
-import { parseGazerNotification } from '/@/lib/gazerNotification'
 import { useMessagesView } from '/@/store/domain/messagesView'
 import { useMessagesStore } from '/@/store/entities/messages'
 import { useMessageEditingStateStore } from '/@/store/ui/messageEditingStateStore'
@@ -55,7 +50,6 @@ import type { MessageId } from '/@/types/entity-ids'
 import MessageFileList from './Embeddings/MessageFileList.vue'
 import MessageOgpList from './Embeddings/MessageOgpList.vue'
 import MessageQuoteList from './Embeddings/MessageQuoteList.vue'
-import GazerNotification from './GazerNotification.vue'
 import MessageEditor from './MessageEditor.vue'
 import MessageHeader from './MessageHeader.vue'
 
@@ -77,10 +71,6 @@ const { renderedContentMap } = useMessagesView()
 const renderedContent = computed(
   () => renderedContentMap.value.get(props.messageId) ?? ''
 )
-const gazerNotification = computed(() =>
-  parseGazerNotification(message.value.content)
-)
-
 const { embeddingsState } = useEmbeddings(props)
 </script>
 
