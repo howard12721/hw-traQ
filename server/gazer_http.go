@@ -42,7 +42,7 @@ func getGazer(service *gazerService) echo.HandlerFunc {
 		if err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get gazer setting")
 		}
-		service.refreshWithBestCredential(user, credentialFromRequest(c.Request()), setting)
+		service.refreshWithAccessToken(user, setting)
 		service.refreshBotUserID(c.Request().Context())
 
 		return c.JSON(http.StatusOK, newGazerResponse(service, user.ID, setting))

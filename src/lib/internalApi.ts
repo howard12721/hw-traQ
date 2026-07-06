@@ -31,6 +31,7 @@ type InternalMeResponse = {
 export type GazerEntry = {
   id?: number
   pattern: string
+  displayName: string
   includeSelf: boolean
   includeBots: boolean
 }
@@ -58,6 +59,7 @@ export type GazerNotificationItem = {
   authorId: string
   content: string
   pattern: string
+  displayName: string
   createdAt: string
   notifiedAt: string
   read: boolean

@@ -17,8 +17,15 @@
           />
         </div>
         <FormInput
+          v-model="entry.displayName"
+          label="Display Name"
+          placeholder="traP"
+          autocomplete="off"
+        />
+        <FormInput
           v-model="entry.pattern"
-          placeholder="例: release|障害|deploy"
+          label="正規表現"
+          placeholder="traP"
           autocomplete="off"
         />
         <div :class="$style.options">
@@ -91,12 +98,13 @@ let nextEntryKey = 1
 const createEntry = (entry?: GazerEntry): GazerEntryState => ({
   key: nextEntryKey++,
   pattern: entry?.pattern ?? '',
+  displayName: entry?.displayName ?? entry?.pattern ?? '',
   includeSelf: entry?.includeSelf ?? false,
   includeBots: entry?.includeBots ?? false
 })
 
 const state = reactive({
-  entries: [createEntry()] as GazerEntryState[]
+  entries: [] as GazerEntryState[]
 })
 const status = reactive({
   running: false,
@@ -122,8 +130,7 @@ const tokenLabel = computed(() =>
 
 const applyResponse = (res: Awaited<ReturnType<typeof getGazer>>) => {
   applyGazerResponse(res)
-  const entries = res.setting.entries.map(entry => createEntry(entry))
-  state.entries = entries.length > 0 ? entries : [createEntry()]
+  state.entries = res.setting.entries.map(entry => createEntry(entry))
   status.enabled = res.setting.enabled
   status.running = res.status.running
   status.tokenConfigured = res.status.tokenConfigured
@@ -134,10 +141,6 @@ const addEntry = () => {
 }
 
 const removeEntry = (index: number) => {
-  if (state.entries.length <= 1) {
-    state.entries = [createEntry()]
-    return
-  }
   state.entries.splice(index, 1)
 }
 
@@ -164,6 +167,7 @@ const save = async () => {
       await putGazer({
         entries: state.entries.map(entry => ({
           pattern: entry.pattern,
+          displayName: entry.displayName.trim() || entry.pattern,
           includeSelf: entry.includeSelf,
           includeBots: entry.includeBots
         }))

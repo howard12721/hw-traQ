@@ -143,6 +143,7 @@ describe('internalApi', () => {
               {
                 id: 1,
                 pattern: 'foo',
+                displayName: 'Foo',
                 includeSelf: false,
                 includeBots: true
               }
@@ -170,6 +171,7 @@ describe('internalApi', () => {
           {
             id: 1,
             pattern: 'foo',
+            displayName: 'Foo',
             includeSelf: false,
             includeBots: true
           }
@@ -222,12 +224,14 @@ describe('internalApi', () => {
               {
                 id: 1,
                 pattern: 'foo',
+                displayName: 'Foo',
                 includeSelf: true,
                 includeBots: false
               },
               {
                 id: 2,
                 pattern: 'bar',
+                displayName: 'Bar',
                 includeSelf: false,
                 includeBots: true
               }
@@ -253,11 +257,13 @@ describe('internalApi', () => {
         entries: [
           {
             pattern: 'foo',
+            displayName: 'Foo',
             includeSelf: true,
             includeBots: false
           },
           {
             pattern: 'bar',
+            displayName: 'Bar',
             includeSelf: false,
             includeBots: true
           }
@@ -269,12 +275,14 @@ describe('internalApi', () => {
           {
             id: 1,
             pattern: 'foo',
+            displayName: 'Foo',
             includeSelf: true,
             includeBots: false
           },
           {
             id: 2,
             pattern: 'bar',
+            displayName: 'Bar',
             includeSelf: false,
             includeBots: true
           }
@@ -298,11 +306,13 @@ describe('internalApi', () => {
         entries: [
           {
             pattern: 'foo',
+            displayName: 'Foo',
             includeSelf: true,
             includeBots: false
           },
           {
             pattern: 'bar',
+            displayName: 'Bar',
             includeSelf: false,
             includeBots: true
           }
@@ -320,6 +330,7 @@ describe('internalApi', () => {
               {
                 id: 1,
                 pattern: 'foo',
+                displayName: 'Foo',
                 includeSelf: true,
                 includeBots: false
               }
@@ -352,6 +363,7 @@ describe('internalApi', () => {
           {
             id: 1,
             pattern: 'foo',
+            displayName: 'Foo',
             includeSelf: true,
             includeBots: false
           }
@@ -391,6 +403,7 @@ describe('internalApi', () => {
               authorId: 'author-id',
               content: '障害対応お願いします',
               pattern: '障害|deploy',
+              displayName: '障害通知',
               createdAt: '2026-07-06T12:34:56.000Z',
               notifiedAt: '2026-07-06T12:34:57.000Z',
               read: false
@@ -416,6 +429,7 @@ describe('internalApi', () => {
           authorId: 'author-id',
           content: '障害対応お願いします',
           pattern: '障害|deploy',
+          displayName: '障害通知',
           createdAt: '2026-07-06T12:34:56.000Z',
           notifiedAt: '2026-07-06T12:34:57.000Z',
           read: false

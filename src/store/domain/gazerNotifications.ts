@@ -12,6 +12,7 @@ import type {
   GazerResponse
 } from '/@/lib/internalApi'
 import { messageMitt } from '/@/store/entities/messages'
+import { useToastStore } from '/@/store/ui/toast'
 import { convertToRefsStore } from '/@/store/utils/convertToRefsStore'
 import type { UserId } from '/@/types/entity-ids'
 
@@ -60,9 +61,33 @@ const useGazerNotificationsStorePinia = defineStore(
     const isGatewayUserId = (userId: UserId) =>
       gatewayUserId.value !== undefined && gatewayUserId.value === userId
 
+    const fetchNotificationsForGatewayMessage = async () => {
+      const knownIds = new Set(
+        notifications.value.map(notification => notification.id)
+      )
+      try {
+        await fetchNotifications()
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to fetch gazer notifications', { cause: e })
+        return
+      }
+
+      const latest = notifications.value.find(
+        notification => !knownIds.has(notification.id)
+      )
+      if (!latest) return
+
+      useToastStore().addToast({
+        type: 'info',
+        text: `Gazer: ${latest.displayName}`,
+        timeout: 8000
+      })
+    }
+
     messageMitt.on('addMessage', ({ message }) => {
       if (!isGatewayUserId(message.userId)) return
-      void fetchNotifications()
+      void fetchNotificationsForGatewayMessage()
     })
 
     return {

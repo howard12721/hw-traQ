@@ -2,11 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"errors"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 )
 
-const gazerSchemaMigration = "20260706_gazer_schema_v2"
+const gazerSchemaMigration = "20260706_gazer_schema_v4"
+const gazerNotificationUniqueIndex = "uniq_gazer_notifications_user_message_pattern"
 
 type gazerSetting struct {
 	UserID      string       `json:"-"`
@@ -18,21 +24,24 @@ type gazerSetting struct {
 type gazerEntry struct {
 	ID          int64  `json:"id,omitempty"`
 	Pattern     string `json:"pattern"`
+	DisplayName string `json:"displayName"`
 	IncludeSelf bool   `json:"includeSelf"`
 	IncludeBots bool   `json:"includeBots"`
 }
 
 type gazerNotification struct {
-	ID         int64  `json:"id"`
-	UserID     string `json:"-"`
-	MessageID  string `json:"messageId"`
-	ChannelID  string `json:"channelId"`
-	AuthorID   string `json:"authorId"`
-	Content    string `json:"content"`
-	Pattern    string `json:"pattern"`
-	CreatedAt  string `json:"createdAt"`
-	NotifiedAt string `json:"notifiedAt"`
-	Read       bool   `json:"read"`
+	ID          int64  `json:"id"`
+	UserID      string `json:"-"`
+	MessageID   string `json:"messageId"`
+	ChannelID   string `json:"channelId"`
+	AuthorID    string `json:"authorId"`
+	Content     string `json:"content"`
+	Pattern     string `json:"pattern"`
+	DisplayName string `json:"displayName"`
+	PatternHash string `json:"-"`
+	CreatedAt   string `json:"createdAt"`
+	NotifiedAt  string `json:"notifiedAt"`
+	Read        bool   `json:"read"`
 }
 
 type gazerStore struct {
@@ -75,6 +84,7 @@ CREATE TABLE IF NOT EXISTS gazer_entries (
   id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id VARCHAR(36) NOT NULL,
   pattern TEXT NOT NULL,
+  display_name TEXT NOT NULL,
   include_self BOOLEAN NOT NULL DEFAULT FALSE,
   include_bots BOOLEAN NOT NULL DEFAULT FALSE,
   position INT NOT NULL DEFAULT 0,
@@ -94,12 +104,21 @@ CREATE TABLE IF NOT EXISTS gazer_notifications (
   author_id VARCHAR(36) NOT NULL,
   content MEDIUMTEXT NOT NULL,
   pattern TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  pattern_hash VARCHAR(64) NOT NULL,
   message_created_at VARCHAR(64) NOT NULL,
   notified_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   read_at TIMESTAMP NULL DEFAULT NULL,
   INDEX idx_gazer_notifications_user_id_id (user_id, id),
-  INDEX idx_gazer_notifications_user_id_read_at (user_id, read_at)
+  INDEX idx_gazer_notifications_user_id_read_at (user_id, read_at),
+  UNIQUE KEY uniq_gazer_notifications_user_message_pattern (user_id, message_id, pattern_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`); err != nil {
+		return err
+	}
+	if err := s.ensureGazerDisplayNames(ctx); err != nil {
+		return err
+	}
+	if err := s.ensureNotificationDedupe(ctx); err != nil {
 		return err
 	}
 	return nil
@@ -150,7 +169,7 @@ WHERE user_id = ?`, userID).Scan(&setting.AccessToken)
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, pattern, include_self, include_bots
+SELECT id, pattern, display_name, include_self, include_bots
 FROM gazer_entries
 WHERE user_id = ?
 ORDER BY position, id`, userID)
@@ -161,7 +180,7 @@ ORDER BY position, id`, userID)
 
 	for rows.Next() {
 		var entry gazerEntry
-		if err := rows.Scan(&entry.ID, &entry.Pattern, &entry.IncludeSelf, &entry.IncludeBots); err != nil {
+		if err := rows.Scan(&entry.ID, &entry.Pattern, &entry.DisplayName, &entry.IncludeSelf, &entry.IncludeBots); err != nil {
 			return setting, err
 		}
 		setting.Entries = append(setting.Entries, entry)
@@ -192,10 +211,11 @@ ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)`, setting.UserID); err != nil 
 	}
 	for i, entry := range setting.Entries {
 		if _, err := tx.ExecContext(ctx, `
-INSERT INTO gazer_entries (user_id, pattern, include_self, include_bots, position)
-VALUES (?, ?, ?, ?, ?)`,
+INSERT INTO gazer_entries (user_id, pattern, display_name, include_self, include_bots, position)
+VALUES (?, ?, ?, ?, ?, ?)`,
 			setting.UserID,
 			entry.Pattern,
+			entry.DisplayName,
 			entry.IncludeSelf,
 			entry.IncludeBots,
 			i,
@@ -246,7 +266,8 @@ WHERE access_token IS NOT NULL AND access_token <> ''`)
 	return settings, rows.Err()
 }
 
-func (s *gazerStore) createNotification(ctx context.Context, notification gazerNotification) error {
+func (s *gazerStore) createNotification(ctx context.Context, notification gazerNotification) (bool, error) {
+	notification.PatternHash = gazerPatternHash(notification.Pattern)
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO gazer_notifications (
   user_id,
@@ -255,18 +276,25 @@ INSERT INTO gazer_notifications (
   author_id,
   content,
   pattern,
+  display_name,
+  pattern_hash,
   message_created_at
 )
-VALUES (?, ?, ?, ?, ?, ?, ?)`,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		notification.UserID,
 		notification.MessageID,
 		notification.ChannelID,
 		notification.AuthorID,
 		notification.Content,
 		notification.Pattern,
+		notification.DisplayName,
+		notification.PatternHash,
 		notification.CreatedAt,
 	)
-	return err
+	if isDuplicateEntry(err) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 func (s *gazerStore) listNotifications(ctx context.Context, userID string, limit int) ([]gazerNotification, error) {
@@ -282,6 +310,7 @@ SELECT
   author_id,
   content,
   pattern,
+  display_name,
   message_created_at,
   notified_at,
   read_at IS NOT NULL
@@ -306,6 +335,7 @@ LIMIT ?`, userID, limit)
 			&notification.AuthorID,
 			&notification.Content,
 			&notification.Pattern,
+			&notification.DisplayName,
 			&notification.CreatedAt,
 			&notifiedAt,
 			&notification.Read,
@@ -324,4 +354,125 @@ UPDATE gazer_notifications
 SET read_at = CURRENT_TIMESTAMP
 WHERE user_id = ? AND read_at IS NULL`, userID)
 	return err
+}
+
+func (s *gazerStore) ensureGazerDisplayNames(ctx context.Context) error {
+	hasEntryDisplayName, err := s.columnExists(ctx, "gazer_entries", "display_name")
+	if err != nil {
+		return err
+	}
+	if !hasEntryDisplayName {
+		if _, err := s.db.ExecContext(ctx, `
+ALTER TABLE gazer_entries
+ADD COLUMN display_name TEXT NULL AFTER pattern`); err != nil {
+			return err
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `
+UPDATE gazer_entries
+SET display_name = pattern
+WHERE display_name IS NULL OR display_name = ''`); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `
+ALTER TABLE gazer_entries
+MODIFY display_name TEXT NOT NULL`); err != nil {
+		return err
+	}
+
+	hasNotificationDisplayName, err := s.columnExists(ctx, "gazer_notifications", "display_name")
+	if err != nil {
+		return err
+	}
+	if !hasNotificationDisplayName {
+		if _, err := s.db.ExecContext(ctx, `
+ALTER TABLE gazer_notifications
+ADD COLUMN display_name TEXT NULL AFTER pattern`); err != nil {
+			return err
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `
+UPDATE gazer_notifications
+SET display_name = pattern
+WHERE display_name IS NULL OR display_name = ''`); err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `
+ALTER TABLE gazer_notifications
+MODIFY display_name TEXT NOT NULL`)
+	return err
+}
+
+func (s *gazerStore) ensureNotificationDedupe(ctx context.Context) error {
+	hasPatternHash, err := s.columnExists(ctx, "gazer_notifications", "pattern_hash")
+	if err != nil {
+		return err
+	}
+	if !hasPatternHash {
+		if _, err := s.db.ExecContext(ctx, `
+ALTER TABLE gazer_notifications
+ADD COLUMN pattern_hash VARCHAR(64) NOT NULL DEFAULT '' AFTER pattern`); err != nil {
+			return err
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `
+UPDATE gazer_notifications
+SET pattern_hash = LOWER(SHA2(pattern, 256))
+WHERE pattern_hash = ''`); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `
+DELETE n1
+FROM gazer_notifications n1
+JOIN gazer_notifications n2
+  ON n1.user_id = n2.user_id
+  AND n1.message_id = n2.message_id
+  AND n1.pattern_hash = n2.pattern_hash
+  AND n1.id > n2.id`); err != nil {
+		return err
+	}
+
+	hasIndex, err := s.indexExists(ctx, "gazer_notifications", gazerNotificationUniqueIndex)
+	if err != nil {
+		return err
+	}
+	if hasIndex {
+		return nil
+	}
+	_, err = s.db.ExecContext(ctx, `
+CREATE UNIQUE INDEX uniq_gazer_notifications_user_message_pattern
+ON gazer_notifications (user_id, message_id, pattern_hash)`)
+	return err
+}
+
+func (s *gazerStore) columnExists(ctx context.Context, tableName, columnName string) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = ?
+  AND COLUMN_NAME = ?`, tableName, columnName).Scan(&count)
+	return count > 0, err
+}
+
+func (s *gazerStore) indexExists(ctx context.Context, tableName, indexName string) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+SELECT COUNT(*)
+FROM information_schema.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = ?
+  AND INDEX_NAME = ?`, tableName, indexName).Scan(&count)
+	return count > 0, err
+}
+
+func gazerPatternHash(pattern string) string {
+	sum := sha256.Sum256([]byte(pattern))
+	return hex.EncodeToString(sum[:])
+}
+
+func isDuplicateEntry(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }

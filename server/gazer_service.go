@@ -88,7 +88,7 @@ func (s *gazerService) refreshBotUserID(ctx context.Context) {
 	s.mu.Unlock()
 }
 
-func (s *gazerService) save(ctx context.Context, user *traQUser, credential traQCredential, setting gazerSetting) (gazerSetting, error) {
+func (s *gazerService) save(ctx context.Context, user *traQUser, _ traQCredential, setting gazerSetting) (gazerSetting, error) {
 	current, err := s.store.get(ctx, user.ID)
 	if err != nil {
 		return gazerSetting{}, err
@@ -106,7 +106,7 @@ func (s *gazerService) save(ctx context.Context, user *traQUser, credential traQ
 	if err := s.store.upsert(ctx, setting); err != nil {
 		return gazerSetting{}, err
 	}
-	s.refreshWithBestCredential(user, credential, setting)
+	s.refreshWithAccessToken(user, setting)
 	return setting, nil
 }
 
@@ -151,12 +151,12 @@ func (s *gazerService) restore(ctx context.Context) error {
 	return nil
 }
 
-func (s *gazerService) refreshWithBestCredential(user *traQUser, fallback traQCredential, setting gazerSetting) {
-	if setting.AccessToken != "" {
-		s.refresh(user, credentialFromAccessToken(setting.AccessToken), setting)
+func (s *gazerService) refreshWithAccessToken(user *traQUser, setting gazerSetting) {
+	if setting.AccessToken == "" {
+		s.stop(user.ID)
 		return
 	}
-	s.refresh(user, fallback, setting)
+	s.refresh(user, credentialFromAccessToken(setting.AccessToken), setting)
 }
 
 func (s *gazerService) refresh(user *traQUser, credential traQCredential, setting gazerSetting) {
@@ -243,6 +243,7 @@ func gazerWorkerSignature(setting gazerSetting, credential traQCredential) strin
 		parts = append(
 			parts,
 			entry.Pattern,
+			entry.DisplayName,
 			boolSignature(entry.IncludeSelf),
 			boolSignature(entry.IncludeBots),
 		)
@@ -279,8 +280,13 @@ func normalizeGazerEntries(entries []gazerEntry) []gazerEntry {
 		if entry.Pattern == "" {
 			continue
 		}
+		displayName := strings.TrimSpace(entry.DisplayName)
+		if displayName == "" {
+			displayName = entry.Pattern
+		}
 		normalized = append(normalized, gazerEntry{
 			Pattern:     entry.Pattern,
+			DisplayName: displayName,
 			IncludeSelf: entry.IncludeSelf,
 			IncludeBots: entry.IncludeBots,
 		})
@@ -387,23 +393,30 @@ func (s *gazerService) processMessage(ctx context.Context, user *traQUser, crede
 	}
 	for _, entry := range matches {
 		payload := gazerNotificationPayload{
-			MessageID: message.ID,
-			ChannelID: message.ChannelID,
-			AuthorID:  message.UserID,
-			Content:   message.Content,
-			Pattern:   entry.Pattern,
-			CreatedAt: message.CreatedAt,
+			MessageID:   message.ID,
+			ChannelID:   message.ChannelID,
+			AuthorID:    message.UserID,
+			Content:     message.Content,
+			Pattern:     entry.Pattern,
+			DisplayName: entry.DisplayName,
+			CreatedAt:   message.CreatedAt,
 		}
-		if err := s.store.createNotification(ctx, gazerNotification{
-			UserID:    user.ID,
-			MessageID: payload.MessageID,
-			ChannelID: payload.ChannelID,
-			AuthorID:  payload.AuthorID,
-			Content:   payload.Content,
-			Pattern:   payload.Pattern,
-			CreatedAt: payload.CreatedAt,
-		}); err != nil {
+		created, err := s.store.createNotification(ctx, gazerNotification{
+			UserID:      user.ID,
+			MessageID:   payload.MessageID,
+			ChannelID:   payload.ChannelID,
+			AuthorID:    payload.AuthorID,
+			Content:     payload.Content,
+			Pattern:     payload.Pattern,
+			DisplayName: payload.DisplayName,
+			CreatedAt:   payload.CreatedAt,
+		})
+		if err != nil {
 			slog.Warn("gazer failed to save notification", "userID", user.ID, "messageID", message.ID, "error", err)
+			continue
+		}
+		if !created {
+			continue
 		}
 		content, err := formatGazerNotification(payload)
 		if err != nil {
