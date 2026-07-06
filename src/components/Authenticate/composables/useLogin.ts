@@ -3,7 +3,7 @@ import { onMounted, reactive, ref, watch, watchEffect } from 'vue'
 import type { AxiosError } from 'axios'
 
 import apis from '/@/lib/apis'
-import { checkInternalBackend } from '/@/lib/internalApi'
+import { checkInternalBackend, getInternalMe } from '/@/lib/internalApi'
 import { useMeStore } from '/@/store/domain/me'
 
 import useCredentialManager from './useCredentialManager'
@@ -76,6 +76,12 @@ const useLogin = () => {
       await savePass(state.name, state.pass)
 
       await fetchMe()
+      try {
+        await getInternalMe()
+      } catch {
+        state.error = '独自バックエンドでログイン状態を確認できません'
+        return
+      }
 
       redirect()
     } catch (e) {

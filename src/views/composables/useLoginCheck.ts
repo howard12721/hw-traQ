@@ -1,6 +1,7 @@
 import { onActivated, onBeforeMount, ref } from 'vue'
 
 import { createSingleflight } from '/@/lib/basic/async'
+import { getGazer } from '/@/lib/internalApi'
 import { setupWebSocket } from '/@/lib/websocket'
 import router, { RouteName } from '/@/router'
 import { useMeStore } from '/@/store/domain/me'
@@ -21,6 +22,15 @@ const performLoginCheck = createSingleflight(
   }
 )
 
+const syncGazerSession = createSingleflight(async () => {
+  try {
+    await getGazer()
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to sync gazer session', { cause: e })
+  }
+})
+
 /**
  * @param afterCheck ログイン確認後、ログインしていたら実行される
  */
@@ -36,6 +46,7 @@ const useLoginCheck = (afterCheck?: () => void) => {
 
     if (detail.value !== undefined) {
       await setupWebSocket()
+      void syncGazerSession()
 
       afterCheck?.()
     }

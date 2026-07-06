@@ -17,6 +17,7 @@ export type SettingsRouteName =
   | typeof settingsStampPaletteRouteName
   | 'settingsTheme'
   | 'settingsAudio'
+  | 'settingsGazer'
   | 'settingsFeatureFlag'
 
 export const isSettingsRouteName = (
@@ -46,6 +47,8 @@ const pathByRouteName = (routeName: SettingsRouteName) => {
       return 'theme'
     case 'settingsAudio':
       return 'audio'
+    case 'settingsGazer':
+      return 'gazer'
     case 'settingsFeatureFlag':
       return 'feature-flag'
   }
@@ -60,6 +63,7 @@ const StampPalette = () =>
   import('/@/views/Settings/StampPaletteTab/StampPaletteTab.vue')
 const Theme = () => import('/@/views/Settings/ThemeTab.vue')
 const Audio = () => import('/@/views/Settings/AudioTab.vue')
+const Gazer = () => import('/@/views/Settings/GazerTab.vue')
 const FeatureFlag = () => import('/@/views/Settings/FeatureFlagTab.vue')
 
 const createRoute = (
@@ -85,6 +89,7 @@ export const settingsRoutes: RouteRecordRaw[] = [
   createRoute('settingsStampPalette', StampPalette, settingsStampPaletteRoutes),
   createRoute('settingsTheme', Theme),
   createRoute('settingsAudio', Audio),
+  createRoute('settingsGazer', Gazer),
   createRoute('settingsFeatureFlag', FeatureFlag)
 ]
 

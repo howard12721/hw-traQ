@@ -52,6 +52,39 @@ func run() error {
 }
 
 func newServer() *echo.Echo {
+	return newServerWithConfig(mustServerConfigFromEnv())
+}
+
+type serverConfig struct {
+	authenticator *traQAuthenticator
+	gazer         *gazerService
+	gazerClientID string
+}
+
+func mustServerConfigFromEnv() serverConfig {
+	db, err := openDBFromEnv()
+	if err != nil {
+		panic(err)
+	}
+
+	store := newGazerStore(db)
+	if err := store.migrate(context.Background()); err != nil {
+		panic(err)
+	}
+
+	traqClient := mustTraQClientFromEnv()
+	gazer := newGazerService(store, traqClient)
+	if err := gazer.restore(context.Background()); err != nil {
+		panic(err)
+	}
+	return serverConfig{
+		authenticator: mustTraQAuthenticatorFromEnv(),
+		gazer:         gazer,
+		gazerClientID: os.Getenv("GAZER_OAUTH_CLIENT_ID"),
+	}
+}
+
+func newServerWithConfig(config serverConfig) *echo.Echo {
 	e := echo.New()
 
 	e.Use(middleware.Recover())
@@ -62,6 +95,13 @@ func newServer() *echo.Echo {
 
 	v1 := internal.Group("/v1")
 	v1.GET("/ping", getPing)
+	v1.GET("/me", getMe, requireTraQUser(config.authenticator))
+	if config.gazer != nil {
+		v1.GET("/gazer", getGazer(config.gazer), requireTraQUser(config.authenticator))
+		v1.PUT("/gazer", putGazer(config.gazer), requireTraQUser(config.authenticator))
+		v1.PUT("/gazer/token", putGazerToken(config.gazer), requireTraQUser(config.authenticator))
+		v1.GET("/gazer/oauth-client", getGazerOAuthClient(config.gazerClientID), requireTraQUser(config.authenticator))
+	}
 
 	return e
 }
@@ -87,4 +127,12 @@ func getHealth(c *echo.Context) error {
 
 func getPing(c *echo.Context) error {
 	return c.JSON(http.StatusOK, pingResponse{Message: "pong"})
+}
+
+func getMe(c *echo.Context) error {
+	user, ok := currentTraQUser(c)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "unauthorized")
+	}
+	return c.JSON(http.StatusOK, meResponse{User: user})
 }

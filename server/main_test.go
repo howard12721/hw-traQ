@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/labstack/echo/v5"
 )
 
 func TestInternalRoutes(t *testing.T) {
@@ -33,7 +35,7 @@ func TestInternalRoutes(t *testing.T) {
 		},
 	}
 
-	e := newServer()
+	e := newTestServer(t, "http://127.0.0.1/api/v3")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,6 +52,39 @@ func TestInternalRoutes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetGazerOAuthClient(t *testing.T) {
+	t.Run("configured", func(t *testing.T) {
+		e := echo.New()
+		e.GET("/oauth-client", getGazerOAuthClient("client-id"))
+
+		req := httptest.NewRequest(http.MethodGet, "/oauth-client", nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+		if rec.Body.String() != `{"clientId":"client-id"}`+"\n" {
+			t.Fatalf("body = %q", rec.Body.String())
+		}
+	})
+
+	t.Run("not configured", func(t *testing.T) {
+		e := echo.New()
+		e.GET("/oauth-client", getGazerOAuthClient(""))
+
+		req := httptest.NewRequest(http.MethodGet, "/oauth-client", nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Fatalf("status = %d, want %d; body = %s", rec.Code, http.StatusServiceUnavailable, rec.Body.String())
+		}
+	})
 }
 
 func TestListenAddr(t *testing.T) {
