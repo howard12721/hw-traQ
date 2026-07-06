@@ -1,8 +1,9 @@
-import { reactive, ref, watch, watchEffect } from 'vue'
+import { onMounted, reactive, ref, watch, watchEffect } from 'vue'
 
 import type { AxiosError } from 'axios'
 
 import apis from '/@/lib/apis'
+import { checkInternalBackend } from '/@/lib/internalApi'
 import { useMeStore } from '/@/store/domain/me'
 
 import useCredentialManager from './useCredentialManager'
@@ -31,6 +32,20 @@ const useLogin = () => {
     }
   )
 
+  const checkBackendConnectivity = async () => {
+    try {
+      await checkInternalBackend()
+      return true
+    } catch {
+      state.error = '独自バックエンドに接続できません'
+      return false
+    }
+  }
+
+  onMounted(() => {
+    void checkBackendConnectivity()
+  })
+
   const saved = ref<PasswordCredential | null>(null)
   watchEffect(async () => {
     const res = await getPass()
@@ -50,6 +65,8 @@ const useLogin = () => {
   }
 
   const login = async () => {
+    if (!(await checkBackendConnectivity())) return
+
     // @はユーザー名に含まれることはなく、
     // 先頭に@を入れている場合があるのでその場合は@を削除する
     const name = state.name.replace(/^@/, '')
@@ -99,7 +116,9 @@ const useLogin = () => {
       }
     }
   }
-  const loginExternal = (provider: string) => {
+  const loginExternal = async (provider: string) => {
+    if (!(await checkBackendConnectivity())) return
+
     setRedirectSessionStorage()
     location.href = `/api/auth/${provider}`
   }

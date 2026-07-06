@@ -13,7 +13,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 import svgLoader from 'vite-svg-loader'
 import GithubActionsReporter from 'vitest-github-actions-reporter'
 
-import { DEV_SERVER_PROXY_HOST } from './dev.config'
+import {
+  DEV_INTERNAL_SERVER_PROXY_HOST,
+  DEV_SERVER_PROXY_HOST
+} from './dev.config'
 import packageJson from './package.json'
 import webManifest from './webmanifest'
 
@@ -49,6 +52,11 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         ws: true,
         agent: keepAliveAgent
+      },
+      '/internal': {
+        target: DEV_INTERNAL_SERVER_PROXY_HOST,
+        changeOrigin: true,
+        ws: true
       }
     },
     ...localhostCerts
