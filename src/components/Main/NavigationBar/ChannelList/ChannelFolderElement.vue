@@ -106,6 +106,10 @@ const onClick = () => {
 $elementHeight: 32px;
 $bgHeight: 36px;
 $bgLeftShift: 8px;
+$folderIconLeft: 3px;
+$folderIconSize: 26px;
+$folderIconTextGap: 8px;
+$nameHorizontalPadding: 8px;
 
 .container {
   @include color-ui-primary;
@@ -127,7 +131,8 @@ $bgLeftShift: 8px;
   align-items: center;
   width: calc(100% - #{$bgLeftShift});
   height: $elementHeight;
-  padding-left: 24px;
+  padding-left: $folderIconLeft + $folderIconSize + $folderIconTextGap -
+    $nameHorizontalPadding;
   padding-right: 12px;
   margin-left: $bgLeftShift;
   cursor: pointer;
@@ -139,12 +144,12 @@ $bgLeftShift: 8px;
 }
 .folderIconWrapper {
   position: absolute;
-  left: 3px;
+  left: $folderIconLeft;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: $folderIconSize;
+  height: $folderIconSize;
   border-radius: 4px;
   color: $theme-ui-primary-default;
   &[data-is-opened] {
@@ -163,7 +168,7 @@ $bgLeftShift: 8px;
   display: block;
   min-width: 0;
   max-width: 100%;
-  padding: 0 8px;
+  padding: 0 $nameHorizontalPadding;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
