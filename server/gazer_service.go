@@ -360,9 +360,10 @@ func (s *gazerService) processMessage(ctx context.Context, user *traQUser, crede
 	}
 
 	var (
-		isBot      bool
-		isBotKnown bool
-		matches    []gazerEntry
+		isBot        bool
+		isBotKnown   bool
+		matchedEntry gazerEntry
+		matchedAny   bool
 	)
 	for _, entry := range entries {
 		if message.UserID == user.ID && !entry.entry.IncludeSelf {
@@ -393,10 +394,39 @@ func (s *gazerService) processMessage(ctx context.Context, user *traQUser, crede
 			continue
 		}
 		if matched {
-			matches = append(matches, entry.entry)
+			matchedEntry = entry.entry
+			matchedAny = true
+			break
 		}
 	}
-	if len(matches) == 0 {
+	if !matchedAny {
+		return
+	}
+
+	payload := gazerNotificationPayload{
+		MessageID:   message.ID,
+		ChannelID:   message.ChannelID,
+		AuthorID:    message.UserID,
+		Content:     message.Content,
+		Pattern:     matchedEntry.Pattern,
+		DisplayName: matchedEntry.DisplayName,
+		CreatedAt:   message.CreatedAt,
+	}
+	created, err := s.store.createNotification(ctx, gazerNotification{
+		UserID:      user.ID,
+		MessageID:   payload.MessageID,
+		ChannelID:   payload.ChannelID,
+		AuthorID:    payload.AuthorID,
+		Content:     payload.Content,
+		Pattern:     payload.Pattern,
+		DisplayName: payload.DisplayName,
+		CreatedAt:   payload.CreatedAt,
+	})
+	if err != nil {
+		slog.Warn("gazer failed to save notification", "userID", user.ID, "messageID", message.ID, "error", err)
+		return
+	}
+	if !created {
 		return
 	}
 
@@ -405,40 +435,12 @@ func (s *gazerService) processMessage(ctx context.Context, user *traQUser, crede
 		slog.Warn("gazer failed to get bot dm channel", "userID", user.ID, "error", err)
 		return
 	}
-	for _, entry := range matches {
-		payload := gazerNotificationPayload{
-			MessageID:   message.ID,
-			ChannelID:   message.ChannelID,
-			AuthorID:    message.UserID,
-			Content:     message.Content,
-			Pattern:     entry.Pattern,
-			DisplayName: entry.DisplayName,
-			CreatedAt:   message.CreatedAt,
-		}
-		created, err := s.store.createNotification(ctx, gazerNotification{
-			UserID:      user.ID,
-			MessageID:   payload.MessageID,
-			ChannelID:   payload.ChannelID,
-			AuthorID:    payload.AuthorID,
-			Content:     payload.Content,
-			Pattern:     payload.Pattern,
-			DisplayName: payload.DisplayName,
-			CreatedAt:   payload.CreatedAt,
-		})
-		if err != nil {
-			slog.Warn("gazer failed to save notification", "userID", user.ID, "messageID", message.ID, "error", err)
-			continue
-		}
-		if !created {
-			continue
-		}
-		content, err := formatGazerNotification(payload)
-		if err != nil {
-			slog.Warn("gazer failed to format notification", "messageID", message.ID, "error", err)
-			return
-		}
-		if err := s.traq.postBotMessage(ctx, dm.ID, content); err != nil {
-			slog.Warn("gazer failed to notify", "userID", user.ID, "error", err)
-		}
+	content, err := formatGazerNotification(payload)
+	if err != nil {
+		slog.Warn("gazer failed to format notification", "messageID", message.ID, "error", err)
+		return
+	}
+	if err := s.traq.postBotMessage(ctx, dm.ID, content); err != nil {
+		slog.Warn("gazer failed to notify", "userID", user.ID, "error", err)
 	}
 }

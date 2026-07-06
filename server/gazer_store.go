@@ -11,8 +11,9 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-const gazerSchemaMigration = "20260706_gazer_schema_v4"
-const gazerNotificationUniqueIndex = "uniq_gazer_notifications_user_message_pattern"
+const gazerSchemaMigration = "20260706_gazer_schema_v5"
+const gazerNotificationMessageUniqueIndex = "uniq_gazer_notifications_user_message"
+const gazerNotificationPatternUniqueIndex = "uniq_gazer_notifications_user_message_pattern"
 
 type gazerSetting struct {
 	UserID      string       `json:"-"`
@@ -111,7 +112,7 @@ CREATE TABLE IF NOT EXISTS gazer_notifications (
   read_at TIMESTAMP NULL DEFAULT NULL,
   INDEX idx_gazer_notifications_user_id_id (user_id, id),
   INDEX idx_gazer_notifications_user_id_read_at (user_id, read_at),
-  UNIQUE KEY uniq_gazer_notifications_user_message_pattern (user_id, message_id, pattern_hash)
+  UNIQUE KEY uniq_gazer_notifications_user_message (user_id, message_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin`); err != nil {
 		return err
 	}
@@ -427,21 +428,32 @@ FROM gazer_notifications n1
 JOIN gazer_notifications n2
   ON n1.user_id = n2.user_id
   AND n1.message_id = n2.message_id
-  AND n1.pattern_hash = n2.pattern_hash
   AND n1.id > n2.id`); err != nil {
 		return err
 	}
 
-	hasIndex, err := s.indexExists(ctx, "gazer_notifications", gazerNotificationUniqueIndex)
+	hasPatternIndex, err := s.indexExists(ctx, "gazer_notifications", gazerNotificationPatternUniqueIndex)
 	if err != nil {
 		return err
 	}
-	if hasIndex {
+	if hasPatternIndex {
+		if _, err := s.db.ExecContext(ctx, `
+DROP INDEX uniq_gazer_notifications_user_message_pattern
+ON gazer_notifications`); err != nil {
+			return err
+		}
+	}
+
+	hasMessageIndex, err := s.indexExists(ctx, "gazer_notifications", gazerNotificationMessageUniqueIndex)
+	if err != nil {
+		return err
+	}
+	if hasMessageIndex {
 		return nil
 	}
 	_, err = s.db.ExecContext(ctx, `
-CREATE UNIQUE INDEX uniq_gazer_notifications_user_message_pattern
-ON gazer_notifications (user_id, message_id, pattern_hash)`)
+CREATE UNIQUE INDEX uniq_gazer_notifications_user_message
+ON gazer_notifications (user_id, message_id)`)
 	return err
 }
 
