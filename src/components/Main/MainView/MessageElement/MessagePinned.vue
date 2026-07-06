@@ -1,0 +1,37 @@
+<template>
+  <div :class="$style.container">
+    <AIcon name="pin" mdi :size="16" :class="$style.pin" />
+    {{ userDisplayName }}さんがピン留めしました
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { computed } from 'vue'
+
+import AIcon from '/@/components/UI/AIcon.vue'
+import { useUsersStore } from '/@/store/entities/users'
+import type { UserId } from '/@/types/entity-ids'
+
+const props = defineProps<{
+  pinnedUserId: UserId
+}>()
+
+const { usersMap } = useUsersStore()
+const userDisplayName = computed(() => {
+  const user = usersMap.value.get(props.pinnedUserId)
+  return user?.displayName
+})
+</script>
+
+<style lang="scss" module>
+.container {
+  @include color-text-secondary;
+  display: flex;
+  align-items: center;
+}
+.pin {
+  color: $common-ui-pin;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+</style>

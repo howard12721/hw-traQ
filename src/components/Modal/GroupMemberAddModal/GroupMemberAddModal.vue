@@ -1,0 +1,89 @@
+<template>
+  <ModalFrame
+    title="グループメンバー追加"
+    :subtitle="groupName"
+    icon-name="group"
+  >
+    <UsersSelector
+      v-model="userIds"
+      :exclude-ids="members"
+      :class="[$style.users, $style.item]"
+    />
+    <FormInput
+      v-model="role"
+      :class="$style.item"
+      label="役割"
+      :max-length="30"
+    />
+    <div :class="$style.addButtonWrapper">
+      <FormButton label="追加" :loading="isAdding" @click="add" />
+    </div>
+  </ModalFrame>
+</template>
+
+<script lang="ts" setup>
+import { computed, ref } from 'vue'
+
+import FormButton from '/@/components/UI/FormButton.vue'
+import FormInput from '/@/components/UI/FormInput.vue'
+import apis from '/@/lib/apis'
+import { useGroupsStore } from '/@/store/entities/groups'
+import { useModalStore } from '/@/store/ui/modal'
+import { useToastStore } from '/@/store/ui/toast'
+import type { UserGroupId, UserId } from '/@/types/entity-ids'
+
+import ModalFrame from '../Common/ModalFrame.vue'
+import UsersSelector from '../Common/UsersSelector.vue'
+
+const props = defineProps<{
+  id: UserGroupId
+}>()
+
+const { addErrorToast } = useToastStore()
+const { popModal } = useModalStore()
+const { userGroupsMap } = useGroupsStore()
+
+const group = computed(() => userGroupsMap.value.get(props.id))
+const groupName = computed(() => group.value?.name)
+const members = computed(() => group.value?.members.map(m => m.id) ?? [])
+
+const userIds = ref(new Set<UserId>())
+const role = ref('')
+
+const isAdding = ref(false)
+const add = async () => {
+  isAdding.value = true
+  const reqIds = Array.from(userIds.value)
+  try {
+    await apis.addUserGroupMember(
+      props.id,
+      reqIds.map(id => ({ id, role: role.value }))
+    )
+  } catch {
+    addErrorToast('グループメンバーの追加に失敗しました')
+  }
+  isAdding.value = false
+
+  await popModal()
+}
+</script>
+
+<style lang="scss" module>
+.item {
+  margin: 8px 0;
+  &:first-child {
+    margin-top: 0;
+  }
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+.users {
+  height: 240px;
+  max-height: 100%;
+}
+.addButtonWrapper {
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

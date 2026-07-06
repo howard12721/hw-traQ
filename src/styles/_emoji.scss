@@ -1,0 +1,6 @@
+@use 'sass:meta';
+@include meta.load-css('@traptitech/traq-markdown-it/src/css/stamp');
+
+html[data-eco-mode='false'] {
+  @include meta.load-css('@traptitech/traq-markdown-it/src/css/stampEffect');
+}

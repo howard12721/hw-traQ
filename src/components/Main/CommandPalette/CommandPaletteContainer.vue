@@ -1,0 +1,25 @@
+<template>
+  <div v-if="isCommandPaletteShown" :class="$style.container">
+    <CommandPalette />
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { useCommandPalette } from '/@/store/app/commandPalette'
+
+import CommandPalette from './CommandPalette.vue'
+
+const { isCommandPaletteShown } = useCommandPalette()
+</script>
+
+<style lang="scss" module>
+.container {
+  @include background-common-overlay;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100%;
+  z-index: $z-index-command-palette;
+}
+</style>

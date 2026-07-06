@@ -1,0 +1,162 @@
+<template>
+  <ClickOutside @click-outside="closeStampPicker">
+    <div :class="$style.container">
+      <div :class="$style.inputContainer">
+        <FilterInput
+          ref="filterInputRef"
+          v-model="filterState.query"
+          :class="$style.filterInput"
+          placeholder="スタンプを検索"
+          disable-ime
+          focus-on-mount
+          @enter="onFilterEnter"
+        />
+        <StampPickerEffectToggleButton
+          v-if="isEffectEnabled"
+          :class="$style.effectButton"
+          :is-active="shouldShowEffectSelector"
+          :has-effect="hasEffect"
+          @click="toggleShowEffect"
+        />
+      </div>
+      <StampPickerStampList
+        v-show="!shouldShowEffectSelector"
+        :class="$style.stampList"
+        :stamps="stamps"
+        :animation-keys="animationKeys"
+        @input-stamp="onInputStamp"
+        @hover-stamp="onHoverStamp"
+      />
+      <StampPickerEffectSelector
+        v-if="shouldShowEffectSelector"
+        v-model:size-effect="selectedSizeEffect"
+        v-model:anime-effects="selectedAnimeEffects"
+        :class="$style.effectSelector"
+      />
+      <StampPickerPreview
+        :stamp-id="preselected"
+        :size-effect="selectedSizeEffect"
+        :anime-effects="selectedAnimeEffects"
+      />
+      <StampPickerStampSetSelector
+        v-model:current-stamp-set="currentStampSet"
+        :class="$style.paletteSelector"
+        :stamp-sets="stampSetState.stampSets"
+      />
+    </div>
+  </ClickOutside>
+</template>
+
+<script lang="ts" setup>
+import { onMounted, ref } from 'vue'
+
+import ClickOutside from '/@/components/UI/ClickOutside'
+import FilterInput from '/@/components/UI/FilterInput.vue'
+import useResponsive from '/@/composables/useResponsive'
+import { useStampHistory } from '/@/store/domain/stampHistory'
+import { useStampRecommendations } from '/@/store/domain/stampRecommendations'
+import { useStampPicker } from '/@/store/ui/stampPicker'
+import type { StampId } from '/@/types/entity-ids'
+
+import StampPickerEffectSelector from './StampPickerEffectSelector.vue'
+import StampPickerEffectToggleButton from './StampPickerEffectToggleButton.vue'
+import StampPickerPreview from './StampPickerPreview.vue'
+import StampPickerStampList from './StampPickerStampList.vue'
+import StampPickerStampSetSelector from './StampPickerStampSetSelector.vue'
+import useEffectSelector from './composables/useEffectSelector'
+import useStampList from './composables/useStampList'
+import useStampPreselector from './composables/useStampPreselector'
+import useStampSetSelector from './composables/useStampSetSelector'
+
+const {
+  selectHandler,
+  isEffectEnabled,
+  currentStampSet,
+  validateCurrentStampSet,
+  closeStampPicker
+} = useStampPicker()
+const { upsertLocalStampHistory } = useStampHistory()
+const { isMobile } = useResponsive()
+
+const animationKeys = ref(new Map<StampId, number>())
+const incrementAnimationKey = (id: StampId) => {
+  const currentVal = animationKeys.value.get(id) ?? 0
+  animationKeys.value.set(id, currentVal + 1)
+}
+
+const { stamps, filterState } = useStampList(currentStampSet)
+const { stampSetState } = useStampSetSelector()
+
+const {
+  shouldShowEffectSelector,
+  selectedSizeEffect,
+  selectedAnimeEffects,
+  hasEffect,
+  toggleShowEffect
+} = useEffectSelector()
+const { preselected, onHoverStamp } = useStampPreselector()
+
+const { recordStampUsage } = useStampRecommendations()
+
+const filterInputRef = ref<InstanceType<typeof FilterInput> | null>(null)
+
+const onInputStamp = (id: StampId) => {
+  upsertLocalStampHistory(id, new Date())
+  recordStampUsage(id)
+  selectHandler.value({
+    id,
+    sizeEffect: selectedSizeEffect.value,
+    animeEffects: selectedAnimeEffects.value
+  })
+  incrementAnimationKey(id)
+
+  if (!isMobile.value) {
+    filterInputRef.value?.focus()
+  }
+}
+const onFilterEnter = () => {
+  const firstStamp = stamps.value[0]
+  if (!firstStamp) return
+  onInputStamp(firstStamp.id)
+}
+
+onMounted(validateCurrentStampSet)
+</script>
+
+<style lang="scss" module>
+.container {
+  @include background-primary;
+  width: 100%;
+  height: 320px;
+  max-width: 340px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: {
+    style: solid;
+    width: 2px;
+    color: $theme-background-secondary-border;
+  }
+}
+.inputContainer {
+  display: flex;
+  margin: 8px;
+  flex-shrink: 0;
+}
+.filterInput {
+  flex-grow: 1;
+}
+.effectButton {
+  margin-left: 8px;
+}
+.stampList {
+  padding-left: 4px;
+}
+.effectSelector {
+  flex: 1 0;
+}
+.paletteSelector {
+  flex-shrink: 0;
+}
+</style>

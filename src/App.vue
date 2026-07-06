@@ -1,0 +1,125 @@
+<template>
+  <div :class="$style.app" :data-is-mobile="$boolAttr(isMobile)">
+    <router-view v-slot="{ Component }">
+      <keep-alive>
+        <component :is="Component" />
+      </keep-alive>
+    </router-view>
+    <ModalContainer />
+    <ToastContainer />
+    <StampPickerContainer />
+  </div>
+</template>
+
+<script lang="ts">
+import type { Ref } from 'vue'
+import { computed, watch, watchEffect } from 'vue'
+
+import useDocumentTitle from '/@/composables/document/useDocumentTitle'
+import useHtmlDataset from '/@/composables/document/useHtmlDataset'
+import { useThemeVariables } from '/@/composables/document/useThemeVariables'
+import { useBeforeUnload } from '/@/composables/dom/useBeforeUnload'
+import useResponsive from '/@/composables/useResponsive'
+import { useBrowserSettings } from '/@/store/app/browserSettings'
+import { useThemeSettings } from '/@/store/app/themeSettings'
+import { useTts } from '/@/store/app/tts'
+
+const useQallConfirmer = () => {
+  //TODO: 適切な変数にする
+  const isCurrentDevice = computed(() => false)
+
+  useBeforeUnload(isCurrentDevice, 'Qall中ですが本当に終了しますか？')
+}
+
+const useThemeObserver = () => {
+  const { currentTheme } = useThemeSettings()
+  const themeColor = computed(() => currentTheme.value.browser.themeColor)
+
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const $themeColor = document.querySelector<HTMLMetaElement>(
+    'meta[name="theme-color"]'
+  )!
+  $themeColor.content = themeColor.value
+
+  watchEffect(() => {
+    if ($themeColor.content !== themeColor.value) {
+      $themeColor.content = themeColor.value
+    }
+  })
+
+  const codeHighlight = computed(
+    () => currentTheme.value.markdown.codeHighlight
+  )
+  useHtmlDataset('codeHighlight', codeHighlight)
+
+  const stampEdge = computed(() => currentTheme.value.specific.stampEdgeEnable)
+  useHtmlDataset('stampEdge', stampEdge)
+}
+
+const useEcoModeObserver = () => {
+  const { ecoMode } = useBrowserSettings()
+  useHtmlDataset('ecoMode', ecoMode)
+}
+
+const useThemeStyleTag = (style: Ref<Record<string, string>>) => {
+  const styleText = computed(
+    () =>
+      `:root {
+${Object.entries(style.value)
+  .map(([key, value]) => `${key}:${value}`)
+  .join(';')}
+}`
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const themeStyleTag = document.getElementById('theme-style')!
+  watchEffect(() => {
+    themeStyleTag.textContent = styleText.value
+  })
+}
+</script>
+
+<script lang="ts" setup>
+import StampPickerContainer from '/@/components/Main/StampPicker/StampPickerContainer.vue'
+import ModalContainer from '/@/components/Modal/ModalContainer.vue'
+import ToastContainer from '/@/components/Toast/ToastContainer.vue'
+import { useFeatureFlagSettings } from '/@/store/app/featureFlagSettings'
+
+const { featureFlags } = useFeatureFlagSettings()
+
+watch(
+  () => featureFlags.value.contain_strict_alternate.enabled,
+  enabled => {
+    document.body.style.setProperty(
+      '--contain-strict',
+      enabled ? 'inline-size layout paint style' : 'strict'
+    )
+  },
+  { immediate: true }
+)
+
+useTts()
+
+const { isMobile } = useResponsive()
+
+useDocumentTitle()
+useQallConfirmer()
+
+useThemeObserver()
+useEcoModeObserver()
+
+const themeVariables = useThemeVariables()
+useThemeStyleTag(themeVariables)
+</script>
+
+<style lang="scss" module>
+.app {
+  @include background-secondary;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+</style>
