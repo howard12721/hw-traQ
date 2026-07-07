@@ -135,25 +135,21 @@ const onIconHoveredLeave = () => {
     }
     &[data-is-opened] {
       color: var(--specific-channel-hash-opened);
-      border-color: currentColor;
-      background: transparent;
+      background: $theme-ui-primary-background;
       &:hover::before,
       .container:focus &::before {
         background: $theme-ui-primary-background;
         opacity: 0.5;
       }
       &[data-is-inactive] {
-        border-color: $theme-ui-secondary-default;
-        background: transparent;
+        background: $theme-ui-secondary-background;
         &:hover::before,
         .container:focus &::before {
           background: $theme-ui-secondary-background;
         }
       }
       &[data-is-selected] {
-        color: $theme-accent-primary-default;
-        border-color: $theme-accent-primary-default;
-        background: transparent;
+        @include background-accent-primary;
         &:hover::before,
         .container:focus &::before {
           @include background-accent-primary;

@@ -27,7 +27,6 @@ defineProps<{
 .content {
   min-width: 0;
   width: 100%;
-  border-right: 1px solid $theme-background-primary-border;
 }
 
 .sidebar {

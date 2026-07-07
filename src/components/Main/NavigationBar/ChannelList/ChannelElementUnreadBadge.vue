@@ -33,7 +33,6 @@ const unreadCountString = computed(() => {
 .container {
   color: var(--specific-channel-unread-badge-text);
   background: $theme-ui-secondary-background;
-  margin-left: 6px;
   padding: 0 4px;
   min-width: 24px;
   flex-shrink: 0;

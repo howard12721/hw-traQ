@@ -2,7 +2,6 @@
   <div
     :class="$style.container"
     :data-is-selected="$boolAttr(isSelected)"
-    :data-is-opened="$boolAttr(isOpened)"
     :data-is-inactive="$boolAttr(!channel.active)"
   >
     <!-- チャンネル表示本体 -->
@@ -245,7 +244,7 @@ $bgLeftShift: 8px;
   pointer-events: none;
 
   display: none;
-  .container[data-is-selected]:not([data-is-opened]) > & {
+  .container[data-is-selected] > & {
     @include background-accent-primary;
     display: block;
   }
@@ -253,10 +252,6 @@ $bgLeftShift: 8px;
   &[data-is-focused] {
     display: block;
     background: $theme-ui-primary-background;
-  }
-  .container[data-is-opened] > &[data-is-hovered],
-  .container[data-is-opened] > &[data-is-focused] {
-    background: transparent;
   }
 }
 .slot {

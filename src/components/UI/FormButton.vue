@@ -75,11 +75,6 @@ const spinnerColor = computed(() => {
   border-radius: 4px;
   font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 3px 0 $theme-background-secondary-border;
-  transition:
-    transform 80ms ease-out,
-    box-shadow 80ms ease-out,
-    filter 80ms ease-out;
   &:disabled:not([data-is-loading]) {
     opacity: 0.5;
     cursor: not-allowed;
@@ -109,13 +104,6 @@ const spinnerColor = computed(() => {
   &[data-type='secondary'][data-is-danger] {
     color: $theme-accent-error-default;
     border-color: $theme-accent-error-default;
-  }
-  &:not(:disabled):hover {
-    filter: contrast(1.12) saturate(1.08);
-  }
-  &:not(:disabled):active {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 $theme-background-secondary-border;
   }
 }
 .label {
