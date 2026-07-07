@@ -9,6 +9,7 @@ import { useChannelsStore } from '/@/store/entities/channels'
 import { useAudioController } from '/@/store/ui/audioController'
 import { useMainViewStore } from '/@/store/ui/mainView'
 import { useMessageInputStateStore } from '/@/store/ui/messageInputStateStore'
+import { useScheduledMessageStore } from '/@/store/ui/scheduledMessageStore'
 
 import type {
   EphemeralNavigationItemType,
@@ -34,6 +35,7 @@ export const createItems = (notificationState: {
   channel: boolean
   dm: boolean
   gazer: boolean
+  scheduledMessages: boolean
 }): NavigationSelectorEntry[] => [
   {
     type: 'home',
@@ -48,6 +50,12 @@ export const createItems = (notificationState: {
   {
     type: 'activity',
     iconName: 'activity'
+  },
+  {
+    type: 'scheduledMessages',
+    iconName: 'clock-outline',
+    iconMdi: true,
+    hasNotification: notificationState.scheduledMessages
   },
   {
     type: 'users',
@@ -94,6 +102,7 @@ const useNavigationSelectorEntry = () => {
   const { channelsMap, dmChannelsMap } = useChannelsStore()
   const { isGatewayUserId, unreadCount } = useGazerNotificationsStore()
   const { hasInputChannel } = useMessageInputStateStore()
+  const { scheduledMessages } = useScheduledMessageStore()
   const { fileId } = useAudioController()
   const { getQallingState } = useQall()
   const { primaryView } = useMainViewStore()
@@ -116,7 +125,8 @@ const useNavigationSelectorEntry = () => {
           const dmChannel = dmChannelsMap.value.get(c.channelId)
           return !!dmChannel && isGatewayUserId(dmChannel.userId)
         })
-    )
+    ),
+    scheduledMessages: computed(() => scheduledMessages.value.length > 0)
   })
   const entries = computed(() => createItems(notificationState))
 

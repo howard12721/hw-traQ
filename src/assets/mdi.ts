@@ -23,6 +23,7 @@ import {
   mdiChevronLeft,
   mdiChevronRight,
   mdiChevronUp,
+  mdiClockOutline,
   mdiClose,
   mdiCloseCircle,
   mdiCodeGreaterThan,
@@ -197,7 +198,8 @@ const mdi: MdiIconsMapping = {
   'comment-outline': mdiCommentTextMultipleOutline,
   'comment-off-outline': mdiCommentOffOutline,
   'palette-outline': mdiPaletteOutline,
-  'content-copy': mdiContentCopy
+  'content-copy': mdiContentCopy,
+  'clock-outline': mdiClockOutline
 }
 
 export default mdi

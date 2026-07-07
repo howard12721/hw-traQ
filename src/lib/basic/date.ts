@@ -28,6 +28,59 @@ export const getFullDayWithTimeString = (date: Readonly<Date>) =>
 export const getISOFullDayString = (date: Readonly<Date>) =>
   date.toISOString().split('T')[0]
 
+const JST_OFFSET_MINUTES = 9 * 60
+const JST_OFFSET_MS = JST_OFFSET_MINUTES * 60 * 1000
+
+const getJstDate = (date: Readonly<Date>) =>
+  new Date(date.getTime() + JST_OFFSET_MS)
+
+const getJstYearString = (date: Readonly<Date>) =>
+  getJstDate(date).getUTCFullYear().toString().padStart(4, '0')
+
+const getJstMonthString = (date: Readonly<Date>) =>
+  (getJstDate(date).getUTCMonth() + 1).toString().padStart(2, '0')
+
+const getJstDateString = (date: Readonly<Date>) =>
+  getJstDate(date).getUTCDate().toString().padStart(2, '0')
+
+const getJstHoursString = (date: Readonly<Date>) =>
+  getJstDate(date).getUTCHours().toString().padStart(2, '0')
+
+const getJstMinutesString = (date: Readonly<Date>) =>
+  getJstDate(date).getUTCMinutes().toString().padStart(2, '0')
+
+export const getJstDateTimeLocalString = (date: Readonly<Date>) =>
+  `${getJstYearString(date)}-${getJstMonthString(date)}-${getJstDateString(
+    date
+  )}T${getJstHoursString(date)}:${getJstMinutesString(date)}`
+
+export const getJstFullDayWithTimeString = (date: Readonly<Date>) =>
+  `${getJstYearString(date)}/${getJstMonthString(date)}/${getJstDateString(
+    date
+  )} ${getJstHoursString(date)}:${getJstMinutesString(date)}`
+
+export const parseJstDateTimeLocalString = (dateTime: string) => {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(dateTime)
+  if (!match) return undefined
+
+  const [, year, month, day, hours, minutes] = match
+  const parsed = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hours),
+      Number(minutes)
+    ) - JST_OFFSET_MS
+  )
+
+  if (getJstDateTimeLocalString(parsed) !== dateTime) {
+    return undefined
+  }
+  return parsed
+}
+
 export const getCurrentTimeString = () => getTimeString(new Date())
 
 /**

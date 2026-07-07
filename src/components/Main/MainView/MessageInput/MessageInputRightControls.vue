@@ -2,6 +2,15 @@
   <div :class="$style.container" :data-is-mobile="$boolAttr(isMobile)">
     <MessageInputInsertStampButton @click="emit('clickStamp')" />
     <button
+      :class="$style.scheduleButton"
+      title="予約投稿"
+      :data-has-scheduled-messages="$boolAttr(hasScheduledMessages)"
+      data-testid="message-schedule-button"
+      @click="emit('clickSchedule')"
+    >
+      <AIcon mdi name="clock-outline" />
+    </button>
+    <button
       :class="$style.sendButton"
       title="送信する"
       :disabled="!canPostMessage"
@@ -25,16 +34,19 @@ const props = withDefaults(
   defineProps<{
     canPostMessage?: boolean
     isPosting?: boolean
+    hasScheduledMessages?: boolean
   }>(),
   {
     canPostMessage: false,
-    isPosting: false
+    isPosting: false,
+    hasScheduledMessages: false
   }
 )
 
 const emit = defineEmits<{
   (e: 'clickSend'): void
   (e: 'clickStamp'): void
+  (e: 'clickSchedule'): void
 }>()
 
 const { isMobile } = useResponsive()
@@ -51,8 +63,8 @@ const onClickSendButton = () => {
   @include color-ui-secondary;
   display: flex;
 }
+.scheduleButton,
 .sendButton {
-  @include color-accent-primary;
   height: 24px;
   width: 24px;
   cursor: pointer;
@@ -74,6 +86,19 @@ const onClickSendButton = () => {
   &:hover {
     transform: scale(1.1);
   }
+}
+
+.scheduleButton {
+  @include color-ui-secondary;
+
+  &[data-has-scheduled-messages] {
+    @include color-accent-primary;
+  }
+}
+
+.sendButton {
+  @include color-accent-primary;
+
   &[disabled] {
     @include color-ui-secondary-inactive;
     cursor: not-allowed;

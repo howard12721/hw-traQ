@@ -1,4 +1,4 @@
-import { computed, ref, unref } from 'vue'
+import { ref, unref } from 'vue'
 
 import type { AxiosProgressEvent } from 'axios'
 
@@ -15,6 +15,7 @@ import { useGroupsStore } from '/@/store/entities/groups'
 import { useUsersStore } from '/@/store/entities/users'
 import type {
   Attachment,
+  MessageInputState,
   MessageInputStateKey
 } from '/@/store/ui/messageInputStateStore'
 import { useToastStore } from '/@/store/ui/toast'
@@ -24,6 +25,7 @@ import type { ChannelId } from '/@/types/entity-ids'
  * @param progress アップロード進行状況 0～1
  */
 type ProgressCallback = (progress: number) => void
+const noopProgress: ProgressCallback = () => undefined
 
 const uploadAttachments = async (
   attachments: ReadonlyArray<Readonly<Attachment>>,
@@ -78,21 +80,7 @@ const usePostMessage = (
   inputStateKey = channelId
 ) => {
   const { getMessageInputState } = useMessageInputStateStatic()
-  const { channelPathStringToId, channelIdToShortPathString } = useChannelPath()
-  const { addErrorToast } = useToastStore()
-  const { bothChannelsMapInitialFetchPromise, channelsMap } = useChannelsStore()
-  const { usersMapInitialFetchPromise, findUserByName } = useUsersStore()
-  const { userGroupsMapInitialFetchPromise, getUserGroupByName } =
-    useGroupsStore()
-
-  const isForce = computed(() => channelsMap.value.get(unref(channelId))?.force)
-  const confirmString = computed(
-    () =>
-      `${channelIdToShortPathString(
-        unref(channelId),
-        true
-      )}に投稿されたメッセージは全員に通知されます。メッセージを投稿しますか？\n注) このチャンネルは重要な連絡以外には使用しないでください。`
-  )
+  const { postMessageState } = usePostMessageSender()
 
   const isPosting = ref(false)
   const progress = ref(0)
@@ -105,16 +93,61 @@ const usePostMessage = (
 
     if (isPosting.value || isEmpty) return false
 
-    if (isForce.value && !confirm(confirmString.value)) {
-      // 強制通知チャンネルでconfirmをキャンセルしたときは何もしない
-      return false
-    }
+    try {
+      isPosting.value = true
+      const posted = await postMessageState(cId, state, {
+        onProgress: p => {
+          progress.value = p
+        }
+      })
 
-    await Promise.all([
-      usersMapInitialFetchPromise,
-      userGroupsMapInitialFetchPromise,
-      bothChannelsMapInitialFetchPromise
-    ])
+      if (posted) {
+        clearState()
+      }
+      return posted
+    } finally {
+      isPosting.value = false
+      progress.value = 0
+    }
+  }
+  return { postMessage, isPosting, progress }
+}
+
+interface PostMessageStateOptions {
+  skipForceConfirm?: boolean
+  onProgress?: ProgressCallback
+  errorMessage?: string
+}
+
+interface PrepareMessageInputContentOptions {
+  onProgress?: ProgressCallback
+}
+
+export const usePostMessageSender = () => {
+  const { channelPathStringToId, channelIdToShortPathString } = useChannelPath()
+  const { addErrorToast } = useToastStore()
+  const { channelsMap, fetchChannels } = useChannelsStore()
+  const { findUserByName, fetchUsers } = useUsersStore()
+  const { getUserGroupByName, fetchUserGroups } = useGroupsStore()
+
+  const getForceConfirmString = (cId: ChannelId) =>
+    `${channelIdToShortPathString(
+      cId,
+      true
+    )}に投稿されたメッセージは全員に通知されます。メッセージを投稿しますか？\n注) このチャンネルは重要な連絡以外には使用しないでください。`
+
+  const confirmForcePostIfNeeded = (
+    cId: ChannelId,
+    skipForceConfirm = false
+  ) => {
+    if (skipForceConfirm) return true
+    if (!channelsMap.value.get(cId)?.force) return true
+
+    return confirm(getForceConfirmString(cId))
+  }
+
+  const prepareContent = async (state: Readonly<MessageInputState>) => {
+    await Promise.all([fetchUsers(), fetchUserGroups(), fetchChannels()])
 
     const embeddedText = embedInternalLink(state.text, {
       getUser: findUserByName,
@@ -135,35 +168,66 @@ const usePostMessage = (
     const dummyText = await createContent(embeddedText, dummyFileUrls)
     if (countLength(dummyText) > MESSAGE_MAX_LENGTH) {
       addErrorToast('メッセージが長すぎます')
-      return
+      return undefined
     }
 
-    let posted = false
+    return embeddedText
+  }
+
+  const validateMessageInputState = async (
+    state: Readonly<MessageInputState>
+  ) => (await prepareContent(state)) !== undefined
+
+  const prepareMessageInputContent = async (
+    cId: ChannelId,
+    state: Readonly<MessageInputState>,
+    { onProgress = noopProgress }: PrepareMessageInputContentOptions = {}
+  ) => {
+    const embeddedText = await prepareContent(state)
+    if (embeddedText === undefined) return undefined
+
+    const fileUrls = await uploadAttachments(state.attachments, cId, onProgress)
+    return createContent(embeddedText, fileUrls)
+  }
+
+  const postMessageState = async (
+    cId: ChannelId,
+    state: Readonly<MessageInputState>,
+    {
+      skipForceConfirm = false,
+      onProgress = noopProgress,
+      errorMessage = 'メッセージ送信に失敗しました'
+    }: PostMessageStateOptions = {}
+  ) => {
+    if (!confirmForcePostIfNeeded(cId, skipForceConfirm)) {
+      return false
+    }
+
     try {
-      isPosting.value = true
-
-      const fileUrls = await uploadAttachments(state.attachments, cId, p => {
-        progress.value = p
+      const content = await prepareMessageInputContent(cId, state, {
+        onProgress
       })
+      if (content === undefined) return false
 
-      await apis.postMessage(cId, {
-        content: await createContent(embeddedText, fileUrls)
-      })
+      await apis.postMessage(cId, { content })
 
-      clearState()
-      posted = true
+      return true
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('メッセージ送信に失敗しました', e)
 
-      addErrorToast(formatResizeError(e, 'メッセージ送信に失敗しました'))
-    } finally {
-      isPosting.value = false
-      progress.value = 0
+      addErrorToast(formatResizeError(e, errorMessage))
+      return false
     }
-    return posted
   }
-  return { postMessage, isPosting, progress }
+
+  return {
+    postMessageState,
+    validateMessageInputState,
+    prepareMessageInputContent,
+    confirmForcePostIfNeeded,
+    getForceConfirmString
+  }
 }
 
 export default usePostMessage

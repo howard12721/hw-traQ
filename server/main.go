@@ -56,9 +56,10 @@ func newServer() *echo.Echo {
 }
 
 type serverConfig struct {
-	authenticator *traQAuthenticator
-	gazer         *gazerService
-	gazerClientID string
+	authenticator     *traQAuthenticator
+	gazer             *gazerService
+	gazerClientID     string
+	scheduledMessages *scheduledMessageService
 }
 
 func mustServerConfigFromEnv() serverConfig {
@@ -67,20 +68,28 @@ func mustServerConfigFromEnv() serverConfig {
 		panic(err)
 	}
 
-	store := newGazerStore(db)
-	if err := store.migrate(context.Background()); err != nil {
+	gazerStore := newGazerStore(db)
+	if err := gazerStore.migrate(context.Background()); err != nil {
+		panic(err)
+	}
+	scheduledStore := newScheduledMessageStore(db)
+	if err := scheduledStore.migrate(context.Background()); err != nil {
 		panic(err)
 	}
 
 	traqClient := mustTraQClientFromEnv()
-	gazer := newGazerService(store, traqClient)
+	gazer := newGazerService(gazerStore, traqClient)
 	if err := gazer.restore(context.Background()); err != nil {
 		panic(err)
 	}
+	scheduledMessages := newScheduledMessageService(scheduledStore, traqClient)
+	scheduledMessages.start(context.Background())
+
 	return serverConfig{
-		authenticator: mustTraQAuthenticatorFromEnv(),
-		gazer:         gazer,
-		gazerClientID: os.Getenv("GAZER_OAUTH_CLIENT_ID"),
+		authenticator:     mustTraQAuthenticatorFromEnv(),
+		gazer:             gazer,
+		gazerClientID:     os.Getenv("GAZER_OAUTH_CLIENT_ID"),
+		scheduledMessages: scheduledMessages,
 	}
 }
 
@@ -103,6 +112,11 @@ func newServerWithConfig(config serverConfig) *echo.Echo {
 		v1.GET("/gazer/oauth-client", getGazerOAuthClient(config.gazerClientID), requireTraQUser(config.authenticator))
 		v1.GET("/gazer/notifications", getGazerNotifications(config.gazer), requireTraQUser(config.authenticator))
 		v1.POST("/gazer/notifications/read", postGazerNotificationsRead(config.gazer), requireTraQUser(config.authenticator))
+	}
+	if config.scheduledMessages != nil {
+		v1.GET("/scheduled-messages", getScheduledMessages(config.scheduledMessages), requireTraQUser(config.authenticator))
+		v1.POST("/scheduled-messages", postScheduledMessage(config.scheduledMessages), requireTraQUser(config.authenticator))
+		v1.DELETE("/scheduled-messages/:id", deleteScheduledMessage(config.scheduledMessages), requireTraQUser(config.authenticator))
 	}
 
 	return e

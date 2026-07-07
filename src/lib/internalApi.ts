@@ -8,6 +8,8 @@ export const INTERNAL_GAZER_NOTIFICATIONS_PATH =
   '/internal/v1/gazer/notifications'
 export const INTERNAL_GAZER_NOTIFICATIONS_READ_PATH =
   '/internal/v1/gazer/notifications/read'
+export const INTERNAL_SCHEDULED_MESSAGES_PATH =
+  '/internal/v1/scheduled-messages'
 
 type InternalPingResponse = {
   message: string
@@ -68,6 +70,31 @@ export type GazerNotificationItem = {
 export type GazerNotificationsResponse = {
   notifications: GazerNotificationItem[]
   botUserId?: string
+}
+
+export type ScheduledMessageItem = {
+  id: string
+  channelId: string
+  content: string
+  scheduledAt: string
+  createdAt: string
+  retryAt?: string
+  lastError?: string
+  failedAttempts?: number
+}
+
+export type ScheduledMessagesResponse = {
+  messages: ScheduledMessageItem[]
+}
+
+export type ScheduledMessageResponse = {
+  message: ScheduledMessageItem
+}
+
+export type CreateScheduledMessageRequest = {
+  channelId: string
+  content: string
+  scheduledAt: string
 }
 
 export type GazerTokenRequest = {
@@ -214,5 +241,54 @@ export const markGazerNotificationsRead = async () => {
 
   if (!res.ok) {
     throw new Error('failed to mark gazer notifications as read')
+  }
+}
+
+export const getScheduledMessages = async () => {
+  const res = await fetch(INTERNAL_SCHEDULED_MESSAGES_PATH, {
+    cache: 'no-store',
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json'
+    }
+  })
+
+  if (!res.ok) {
+    throw new Error('failed to get scheduled messages')
+  }
+
+  return (await res.json()) as ScheduledMessagesResponse
+}
+
+export const postScheduledMessage = async (
+  request: CreateScheduledMessageRequest
+) => {
+  const res = await fetch(INTERNAL_SCHEDULED_MESSAGES_PATH, {
+    method: 'POST',
+    cache: 'no-store',
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(request)
+  })
+
+  if (!res.ok) {
+    throw new Error('failed to create scheduled message')
+  }
+
+  return (await res.json()) as ScheduledMessageResponse
+}
+
+export const deleteScheduledMessage = async (id: string) => {
+  const res = await fetch(`${INTERNAL_SCHEDULED_MESSAGES_PATH}/${id}`, {
+    method: 'DELETE',
+    cache: 'no-store',
+    credentials: 'same-origin'
+  })
+
+  if (!res.ok) {
+    throw new Error('failed to delete scheduled message')
   }
 }
