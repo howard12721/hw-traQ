@@ -19,7 +19,7 @@ const getActivityTimeline = createSingleflight(
 )
 
 const useActivityStream = () => {
-  const { activityMode: mode } = useBrowserSettings()
+  const { activityMode: mode, stealthMode } = useBrowserSettings()
   const { isChannelSubscribed } = useSubscriptionStore()
   const { channelsMap, bothChannelsMapInitialFetchPromise } = useChannelsStore()
 
@@ -49,22 +49,27 @@ const useActivityStream = () => {
     } catch {}
   }
 
+  const setCurrentTimelineStreamingState = () => {
+    setTimelineStreamingState(mode.value.all || stealthMode.value)
+  }
+
   // 一番最初に表示されたときに実行する
   onMounted(async () => {
-    setTimelineStreamingState(mode.value.all)
+    setCurrentTimelineStreamingState()
     await fetch()
   })
 
   watch(
     mode,
-    (newMode, oldMode) => {
-      if (newMode.all !== oldMode.all) {
-        setTimelineStreamingState(newMode.all)
-      }
+    () => {
+      setCurrentTimelineStreamingState()
       fetch()
     },
     { deep: true }
   )
+  watch(stealthMode, () => {
+    setCurrentTimelineStreamingState()
+  })
 
   useMittListener(messageMitt, 'addMessage', ({ message: addedMessage }) => {
     // 通常のチャンネルではない、つまりDMのときは無視
@@ -134,7 +139,7 @@ const useActivityStream = () => {
     }
   })
   useMittListener(messageMitt, 'reconnect', async () => {
-    setTimelineStreamingState(mode.value.all)
+    setCurrentTimelineStreamingState()
     await fetch()
   })
 

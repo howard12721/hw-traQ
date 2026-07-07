@@ -4,6 +4,8 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 
 import { convertToRefsStore } from '/@/store/utils/convertToRefsStore'
 
+export const stealthModeState = ref(false)
+
 /**
  * /@/views/composables/useViewStateSenderで利用する情報を格納することを想定
  */
@@ -18,8 +20,10 @@ const useViewStateSenderStorePinia = defineStore(
     const shouldReceiveLatestMessages = ref(false)
     /** タイピング中かどうか */
     const isTyping = ref(false)
+    /** ステルスモード中かどうか */
+    const isStealthMode = stealthModeState
 
-    return { shouldReceiveLatestMessages, isTyping }
+    return { shouldReceiveLatestMessages, isTyping, isStealthMode }
   }
 )
 

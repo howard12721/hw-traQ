@@ -1,6 +1,7 @@
 <template>
   <div>
     <ChannelSidebarViewers
+      v-if="!stealthMode"
       v-model="isViewersDetailOpen"
       :viewer-ids="viewerIds"
       :inactive-viewer-ids="inactiveViewerIds"
@@ -24,6 +25,7 @@ import { ref } from 'vue'
 import ChannelSidebarEvents from '/@/components/Main/MainView/ChannelView/ChannelSidebar/ChannelSidebarEvents.vue'
 import ChannelSidebarPinned from '/@/components/Main/MainView/ChannelView/ChannelSidebar/ChannelSidebarPinned.vue'
 import ChannelSidebarViewers from '/@/components/Main/MainView/ChannelView/ChannelSidebar/ChannelSidebarViewers.vue'
+import { useBrowserSettings } from '/@/store/app/browserSettings'
 import type { UserId } from '/@/types/entity-ids'
 
 withDefaults(
@@ -42,6 +44,7 @@ const emit = defineEmits<{
   (e: 'moveToEvents'): void
 }>()
 
+const { stealthMode } = useBrowserSettings()
 const isViewersDetailOpen = ref(false)
 </script>
 

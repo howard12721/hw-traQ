@@ -7,6 +7,11 @@
       title="省エネモード"
       description="省エネモードがONの場合、スタンプエフェクトのアニメーションを表示しません"
     />
+    <SimpleToggle
+      v-model="config.stealthMode"
+      title="ステルスモード"
+      description="ステルスモードがONの場合、チャンネルを見ていない状態として扱います。"
+    />
     <OpenMode
       v-model:open-mode="config.openMode"
       v-model:startup-channel-id="config.startupChannelId"

@@ -5,8 +5,9 @@ import { useRoute } from 'vue-router'
 
 import { useEventListener } from '@vueuse/core'
 
-import { changeViewState } from '/@/lib/websocket'
+import { changeViewState, setTimelineStreamingState } from '/@/lib/websocket'
 import { RouteName } from '/@/router'
+import { useBrowserSettings } from '/@/store/app/browserSettings'
 import { useViewStateSenderStore } from '/@/store/domain/viewStateSenderStore'
 import { useMainViewStore } from '/@/store/ui/mainView'
 
@@ -14,6 +15,7 @@ const useViewStateSender = () => {
   const route = useRoute()
   const { primaryView } = useMainViewStore()
   const { shouldReceiveLatestMessages, isTyping } = useViewStateSenderStore()
+  const { activityMode, stealthMode } = useBrowserSettings()
 
   const currentChannelId = computed(() => {
     // ルートがチャンネルでないときは閲覧チャンネルをnullにするため
@@ -42,39 +44,40 @@ const useViewStateSender = () => {
       : ChannelViewState.Monitoring
   })
 
-  watchEffect(() => {
-    if (!currentChannelId.value) {
+  const sendCurrentViewState = () => {
+    if (!currentChannelId.value || stealthMode.value) {
       changeViewState(null)
       return
     }
+
+    if (
+      document.visibilityState !== 'visible' ||
+      !document.hasFocus()
+    ) {
+      changeViewState(currentChannelId.value, ChannelViewState.None)
+      return
+    }
+
     changeViewState(currentChannelId.value, state.value)
+  }
+
+  watchEffect(() => {
+    sendCurrentViewState()
+  })
+
+  watchEffect(() => {
+    setTimelineStreamingState(stealthMode.value || activityMode.value.all)
   })
 
   const visibilitychangeListener = () => {
-    if (!currentChannelId.value) {
-      changeViewState(null)
-      return
-    }
-    if (document.visibilityState === 'visible') {
-      changeViewState(currentChannelId.value, state.value)
-      return
-    }
-    changeViewState(currentChannelId.value, ChannelViewState.None)
+    sendCurrentViewState()
   }
   const focusListener = () => {
-    if (!currentChannelId.value) {
-      changeViewState(null)
-      return
-    }
-    changeViewState(currentChannelId.value, state.value)
+    sendCurrentViewState()
   }
 
   const blurListener = () => {
-    if (!currentChannelId.value) {
-      changeViewState(null)
-      return
-    }
-    changeViewState(currentChannelId.value, ChannelViewState.None)
+    sendCurrentViewState()
   }
 
   useEventListener(document, 'visibilitychange', visibilitychangeListener)

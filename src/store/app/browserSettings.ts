@@ -27,6 +27,7 @@ type State = {
   activityMode: ActivityMode
   filterStarChannel: boolean
   showArchivedChannels: boolean
+  stealthMode: boolean
 }
 
 export const sendKeys = ['modifier', 'none'] as const
@@ -72,7 +73,8 @@ const useBrowserSettingsPinia = defineStore('app/browserSettings', () => {
     prioritizeNotifiedChannel: true,
     activityMode: { all: false, perChannel: false },
     filterStarChannel: false,
-    showArchivedChannels: false
+    showArchivedChannels: false,
+    stealthMode: false
   }
 
   const { channelsMap, bothChannelsMapInitialFetchPromise } = useChannelsStore()
@@ -80,7 +82,7 @@ const useBrowserSettingsPinia = defineStore('app/browserSettings', () => {
 
   const [state, migrationPromise] = useLocalStorageValue(
     'store/app/browserSettings',
-    2,
+    3,
     {
       1: async store => {
         const [dbState, _restoring, restoringPromise] = useIndexedDbValue(
@@ -119,6 +121,12 @@ const useBrowserSettingsPinia = defineStore('app/browserSettings', () => {
         }
 
         return store
+      },
+      3: oldStore => {
+        return {
+          ...oldStore,
+          stealthMode: oldStore.stealthMode ?? initialValue.stealthMode
+        }
       }
     },
     initialValue

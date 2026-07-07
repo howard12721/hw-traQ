@@ -10,14 +10,18 @@ import { wsListener } from '/@/lib/websocket'
 import { convertToRefsStore } from '/@/store/utils/convertToRefsStore'
 import { useTrueChangedPromise } from '/@/store/utils/promise'
 
+import { stealthModeState } from './viewStateSenderStore'
+
 const useViewStatesStorePinia = defineStore('domain/viewStates', () => {
   const viewStates = ref(new Map<string, MyChannelViewState>())
   const viewStatesFetched = ref(false)
   const viewStatesInitialFetchPromise = useTrueChangedPromise(viewStatesFetched)
 
   const monitoringChannels = computed(
-    () =>
-      new Set(
+    () => {
+      if (stealthModeState.value) return new Set<string>()
+
+      return new Set(
         [...viewStates.value.values()]
           .filter(
             vs =>
@@ -26,6 +30,7 @@ const useViewStatesStorePinia = defineStore('domain/viewStates', () => {
           )
           .map(vs => vs.channelId)
       )
+    }
   )
   const fetchViewStates = async ({
     ignoreCache = false

@@ -1,6 +1,7 @@
 <template>
   <div>
     <ChannelSidebarViewers
+      v-if="!stealthMode"
       v-model="isViewersDetailOpen"
       :viewer-ids="viewerIds"
       :inactive-viewer-ids="inactiveViewerIds"
@@ -41,6 +42,7 @@
 import { computed } from 'vue'
 
 import { useQall } from '/@/composables/qall/useQall'
+import { useBrowserSettings } from '/@/store/app/browserSettings'
 import type { ChannelId, UserId } from '/@/types/entity-ids'
 
 import ChannelSidebarBots from './ChannelSidebarBots.vue'
@@ -74,6 +76,7 @@ const emit = defineEmits<{
 }>()
 
 const { rooms: roomWithParticipants } = useQall()
+const { stealthMode } = useBrowserSettings()
 
 const qallUserIds = computed(
   () =>

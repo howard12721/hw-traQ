@@ -21,6 +21,7 @@ import { useThemeVariables } from '/@/composables/document/useThemeVariables'
 import { useBeforeUnload } from '/@/composables/dom/useBeforeUnload'
 import useResponsive from '/@/composables/useResponsive'
 import { useBrowserSettings } from '/@/store/app/browserSettings'
+import { useViewStateSenderStore } from '/@/store/domain/viewStateSenderStore'
 import { useThemeSettings } from '/@/store/app/themeSettings'
 import { useTts } from '/@/store/app/tts'
 
@@ -59,6 +60,15 @@ const useThemeObserver = () => {
 const useEcoModeObserver = () => {
   const { ecoMode } = useBrowserSettings()
   useHtmlDataset('ecoMode', ecoMode)
+}
+
+const useStealthModeObserver = () => {
+  const { stealthMode } = useBrowserSettings()
+  const { isStealthMode } = useViewStateSenderStore()
+
+  watchEffect(() => {
+    isStealthMode.value = stealthMode.value
+  })
 }
 
 const useThemeStyleTag = (style: Ref<Record<string, string>>) => {
@@ -107,6 +117,7 @@ useQallConfirmer()
 
 useThemeObserver()
 useEcoModeObserver()
+useStealthModeObserver()
 
 const themeVariables = useThemeVariables()
 useThemeStyleTag(themeVariables)
