@@ -13,6 +13,10 @@
         :class="$style.content"
       />
     </keep-alive>
+    <ScheduledMessagesTab
+      v-if="currentNavigation === 'scheduledMessages'"
+      :class="$style.content"
+    />
     <UsersTab v-if="currentNavigation === 'users'" :class="$style.content" />
     <GazerTab v-if="currentNavigation === 'gazer'" :class="$style.content" />
     <ClipFoldersTab
@@ -30,6 +34,7 @@ import ChannelsTab from './NavigationContent/ChannelsTab.vue'
 import ClipFoldersTab from './NavigationContent/ClipFoldersTab.vue'
 import GazerTab from './NavigationContent/GazerTab.vue'
 import HomeTab from './NavigationContent/HomeTab.vue'
+import ScheduledMessagesTab from './NavigationContent/ScheduledMessagesTab.vue'
 import UsersTab from './NavigationContent/UsersTab.vue'
 import NavigationContentTitle from './NavigationContentTitle.vue'
 

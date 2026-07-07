@@ -59,3 +59,40 @@ func TestExchangeOAuthCode(t *testing.T) {
 		t.Fatalf("accessToken = %q, want access-token", token.AccessToken)
 	}
 }
+
+func TestPostUserMessage(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/channels/channel-id/messages" {
+			t.Fatalf("path = %q, want %q", r.URL.Path, "/api/v3/channels/channel-id/messages")
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer user-token" {
+			t.Fatalf("authorization = %q, want Bearer user-token", got)
+		}
+
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["content"] != "hello" {
+			t.Fatalf("content = %q, want hello", body["content"])
+		}
+		if body["embed"] != true {
+			t.Fatalf("embed = %v, want true", body["embed"])
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer upstream.Close()
+
+	client, err := newTraQClient(upstream.URL+"/api/v3", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.postUserMessage(
+		t.Context(),
+		credentialFromAccessToken("user-token"),
+		"channel-id",
+		"hello",
+	); err != nil {
+		t.Fatal(err)
+	}
+}

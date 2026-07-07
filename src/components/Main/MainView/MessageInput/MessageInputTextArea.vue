@@ -206,8 +206,10 @@ $vertical-padding: 8px;
   @include background-primary;
   width: 100%;
   padding: $vertical-padding 16px;
-  // 左から、余白、スタンプパレットボタン、余白、送信ボタン、スクロールバー
-  padding-right: calc(8px + 24px + 8px + 24px + var(--input-scrollbar-width));
+  // 左から、余白、スタンプパレットボタン、余白、予約ボタン、余白、送信ボタン、スクロールバー
+  padding-right: calc(
+    8px + 24px + 8px + 24px + 8px + 24px + var(--input-scrollbar-width)
+  );
   max-height: var(--max-height);
   &[readonly] {
     @include color-ui-secondary-inactive;

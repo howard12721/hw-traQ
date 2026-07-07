@@ -171,6 +171,14 @@ func (c *traQClient) postBotMessage(ctx context.Context, channelID, content stri
 	return c.postBotJSON(ctx, "/channels/"+url.PathEscape(channelID)+"/messages", body, nil)
 }
 
+func (c *traQClient) postUserMessage(ctx context.Context, credential traQCredential, channelID, content string) error {
+	body := map[string]any{
+		"content": content,
+		"embed":   true,
+	}
+	return c.postJSON(ctx, credential, "/channels/"+url.PathEscape(channelID)+"/messages", body, nil)
+}
+
 func (c *traQClient) dialUserWebSocket(ctx context.Context, credential traQCredential) (*websocket.Conn, error) {
 	header := http.Header{}
 	credential.applyToHeader(header)
@@ -200,20 +208,41 @@ func (c *traQClient) getBotJSON(ctx context.Context, path string, v any) error {
 }
 
 func (c *traQClient) postBotJSON(ctx context.Context, path string, body any, v any) error {
+	req, err := c.newJSONRequest(ctx, http.MethodPost, c.apiBaseURL+path, body)
+	if err != nil {
+		return err
+	}
+	if err := c.applyBotAuthorization(req); err != nil {
+		return err
+	}
+	return c.doJSON(req, v)
+}
+
+func (c *traQClient) postJSON(ctx context.Context, credential traQCredential, path string, body any, v any) error {
+	req, err := c.newJSONRequest(ctx, http.MethodPost, c.apiBaseURL+path, body)
+	if err != nil {
+		return err
+	}
+	credential.applyToHeader(req.Header)
+	return c.doJSON(req, v)
+}
+
+func (c *traQClient) newJSONRequest(ctx context.Context, method, url string, body any) (*http.Request, error) {
 	var reader io.Reader
 	if body != nil {
 		buf := &bytes.Buffer{}
 		if err := json.NewEncoder(buf).Encode(body); err != nil {
-			return err
+			return nil, err
 		}
 		reader = buf
 	}
-	req, err := c.newBotRequest(ctx, http.MethodPost, path, reader)
+	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
-	return c.doJSON(req, v)
+	return req, nil
 }
 
 func (c *traQClient) newBotRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
@@ -227,6 +256,14 @@ func (c *traQClient) newBotRequest(ctx context.Context, method, path string, bod
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.botToken)
 	return req, nil
+}
+
+func (c *traQClient) applyBotAuthorization(req *http.Request) error {
+	if c.botToken == "" {
+		return fmt.Errorf("TRAQ_BOT_TOKEN is not configured")
+	}
+	req.Header.Set("Authorization", "Bearer "+c.botToken)
+	return nil
 }
 
 func (c *traQClient) doJSON(req *http.Request, v any) error {

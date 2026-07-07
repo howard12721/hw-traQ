@@ -9,6 +9,7 @@
       :has-notification="item.hasNotification"
       :icon-mdi="item.iconMdi"
       :icon-name="item.iconName"
+      :title="navigationLabel(item)"
       @click="onNavigationItemClick(item.type)"
     />
     <div v-if="showSeparator" :class="$style.separator" />
@@ -22,6 +23,7 @@
       :icon-mdi="item.iconMdi"
       :icon-name="item.iconName"
       :color-claim="item.colorClaim"
+      :title="ephemeralNavigationLabel(item)"
       @click="onEphemeralNavigationItemClick(item.type)"
     />
   </div>
@@ -36,6 +38,8 @@ import type {
   NavigationItemType
 } from '/@/components/Main/NavigationBar/composables/useNavigationConstructor'
 import {
+  ephemeralNavigationTypeNameMap,
+  navigationTypeNameMap,
   useEphemeralNavigationSelectorItem,
   useNavigationSelectorItem
 } from '/@/components/Main/NavigationBar/composables/useNavigationConstructor'
@@ -43,7 +47,10 @@ import PopupNavigator from '/@/components/Main/PopupNavigatior/PopupNavigator.vu
 import { VERSION } from '/@/lib/define'
 import { useNavigationLayoutStore } from '/@/store/ui/navigationLayout'
 
-import type { EphemeralNavigationSelectorEntry } from './composables/useNavigationSelectorEntry'
+import type {
+  EphemeralNavigationSelectorEntry,
+  NavigationSelectorEntry
+} from './composables/useNavigationSelectorEntry'
 import useNavigationSelectorEntry from './composables/useNavigationSelectorEntry'
 
 const props = withDefaults(
@@ -71,6 +78,11 @@ const { entries, ephemeralEntries } = useNavigationSelectorEntry()
 const showSeparator = computed(() => ephemeralEntries.value.length > 0)
 const { isNavigationClosed, restoreNavigationWidth, closeNavigation } =
   useNavigationLayoutStore()
+
+const navigationLabel = (item: NavigationSelectorEntry) =>
+  navigationTypeNameMap[item.type]
+const ephemeralNavigationLabel = (item: EphemeralNavigationSelectorEntry) =>
+  item.type ? ephemeralNavigationTypeNameMap[item.type] : undefined
 
 const onNavigationItemClick = (item: NavigationItemType) => {
   if (item === props.currentNavigation && !isNavigationClosed.value) {

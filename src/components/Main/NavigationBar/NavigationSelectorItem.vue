@@ -3,6 +3,8 @@
     :class="$style.container"
     :style="containerStyle"
     :aria-selected="isSelected"
+    :aria-label="title"
+    :title="title"
     role="tab"
   >
     <AIcon :class="$style.icon" :name="iconName" :mdi="iconMdi" :size="24" />
@@ -27,6 +29,7 @@ const props = withDefaults(
     iconMdi?: boolean
     isSelected?: boolean
     hasNotification?: boolean
+    title?: string
     colorClaim?: ThemeClaim<string>
   }>(),
   {

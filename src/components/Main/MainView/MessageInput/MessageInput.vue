@@ -57,16 +57,26 @@
       <MessageInputRightControls
         :class="$style.rightControls"
         :can-post-message="canPostMessage"
+        :has-scheduled-messages="hasScheduledMessages"
         :is-posting="isPosting"
         @click-send="postMessage"
+        @click-schedule="toggleSchedulePopup"
         @click-stamp="toggleStampPicker"
+      />
+      <MessageInputSchedulePopup
+        v-if="isSchedulePopupShown"
+        :channel-id="channelId"
+        :message-state="state"
+        :can-schedule="canPostMessage"
+        @close="closeSchedulePopup"
+        @scheduled="onScheduled"
       />
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, toRef, watch, watchEffect } from 'vue'
+import { computed, onMounted, ref, toRef, watch, watchEffect } from 'vue'
 
 import { $boolAttr } from '/@/bool-attr'
 import AIcon from '/@/components/UI/AIcon.vue'
@@ -77,6 +87,7 @@ import useResponsive from '/@/composables/useResponsive'
 import { useBrowserSettings } from '/@/store/app/browserSettings'
 import { useViewStateSenderStore } from '/@/store/domain/viewStateSenderStore'
 import { useChannelsStore } from '/@/store/entities/channels'
+import { useScheduledMessageStore } from '/@/store/ui/scheduledMessageStore'
 import { useToastStore } from '/@/store/ui/toast'
 import type { ChannelId, DMChannelId, UserId } from '/@/types/entity-ids'
 
@@ -86,6 +97,7 @@ import MessageInputKeyGuide from './MessageInputKeyGuide.vue'
 import MessageInputLeftControls from './MessageInputLeftControls.vue'
 import MessageInputPreview from './MessageInputPreview.vue'
 import MessageInputRightControls from './MessageInputRightControls.vue'
+import MessageInputSchedulePopup from './MessageInputSchedulePopup.vue'
 import MessageInputTextArea from './MessageInputTextArea.vue'
 import MessageInputTypingUsers from './MessageInputTypingUsers.vue'
 import MessageInputUploadProgress from './MessageInputUploadProgress.vue'
@@ -120,10 +132,22 @@ const isLeftControlsExpanded = ref(false)
 const isPreviewShown = ref(false)
 const isInputTextAreaExpanded = ref(true)
 const showTextAreaExpandButton = ref(false)
+const isSchedulePopupShown = ref(false)
 
 const isArchived = computed(
   () => channelsMap.value.get(props.channelId)?.archived ?? false
 )
+const { scheduledMessages, fetchScheduledMessages } = useScheduledMessageStore()
+const hasScheduledMessages = computed(() =>
+  scheduledMessages.value.some(message => message.channelId === props.channelId)
+)
+
+onMounted(() => {
+  void fetchScheduledMessages().catch(e => {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to fetch scheduled messages', { cause: e })
+  })
+})
 
 const { isFocused, onFocus, onBlur } = useFocus()
 watchEffect(() => {
@@ -170,6 +194,27 @@ const { toggleStampPicker } = useTextStampPickerInvoker(
 const onClickToNewMessageButton = () => {
   emit('clickToNewMessageButton')
 }
+
+const toggleSchedulePopup = () => {
+  isSchedulePopupShown.value = !isSchedulePopupShown.value
+}
+
+const closeSchedulePopup = () => {
+  isSchedulePopupShown.value = false
+}
+
+const onScheduled = () => {
+  state.text = ''
+  state.attachments = []
+  closeSchedulePopup()
+}
+
+watch(
+  () => props.channelId,
+  () => {
+    closeSchedulePopup()
+  }
+)
 </script>
 
 <style lang="scss" module>
