@@ -144,27 +144,32 @@ defineExpose({ focus })
 .label {
   @include color-ui-primary;
   display: block;
+  font-weight: 700;
 }
 .errorMessage {
   color: $theme-accent-error-default;
+  font-weight: 700;
 }
 .inputContainer {
   @include color-ui-primary;
   @include background-secondary;
   @include size-body1;
-  height: 30px;
+  height: 34px;
   display: flex;
   align-items: center;
   border-radius: 4px;
+  box-shadow: inset 0 0 0 1px $theme-background-primary-default;
   &[data-on-secondary] {
     @include background-primary;
   }
   &[data-has-error] {
     border-color: $theme-accent-error-default;
+    box-shadow: none;
   }
-  border: solid 2px transparent;
+  border: solid 2px $theme-background-secondary-border;
   &:not([data-has-error]):focus-within {
     border-color: $theme-accent-focus-default;
+    box-shadow: 0 0 0 2px $theme-background-primary-default;
   }
 }
 .prefix {
@@ -174,6 +179,10 @@ defineExpose({ focus })
   margin: 0 8px;
   width: 100%;
   color: inherit;
+  font-weight: 650;
+  &::placeholder {
+    color: $theme-ui-secondary-inactive;
+  }
 }
 .suffix {
   margin-right: 8px;

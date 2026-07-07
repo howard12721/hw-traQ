@@ -64,7 +64,7 @@ const props = withDefaults(
     showCount: true,
     userIds: () => [],
     inactiveUserIds: () => [],
-    borderWidth: 4,
+    borderWidth: 1,
     iconSize: 40 as const,
     overlap: 12,
     preventModal: false,

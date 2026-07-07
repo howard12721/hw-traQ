@@ -89,6 +89,7 @@ $ephemeralNavigationMinHeight: 64px;
   width: fit-content;
   height: 100%;
   background: var(--specific-navigation-bar-desktop-background);
+  border-right: 1px solid $theme-background-secondary-border;
 }
 .selector {
   display: flex;
@@ -119,11 +120,11 @@ $ephemeralNavigationMinHeight: 64px;
   scrollbar-width: none;
 }
 .resizer {
-  width: 3px;
+  width: 4px;
   height: 100%;
   position: absolute;
   z-index: $z-index-sidebar;
-  right: -1px;
+  right: -2px;
   top: 0;
   background-color: transparent;
   cursor: e-resize;
@@ -134,7 +135,7 @@ $ephemeralNavigationMinHeight: 64px;
   transition: opacity 125ms linear;
 
   &:hover {
-    opacity: 0.7;
+    opacity: 0.9;
     transition: opacity 100ms ease-out 350ms;
   }
 

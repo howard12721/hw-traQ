@@ -2,6 +2,7 @@
   <div
     :class="$style.container"
     :data-is-selected="$boolAttr(isSelected && !isOpened)"
+    :data-is-opened="$boolAttr(isOpened)"
     :data-is-inactive="$boolAttr(!channel.active)"
   >
     <button
@@ -39,7 +40,7 @@
     </button>
 
     <div
-      v-if="(isSelected && !isOpened) || isHovered || isFocused"
+      v-if="isHovered || isFocused"
       :class="$style.selectedBg"
       :data-is-hovered="$boolAttr(isHovered)"
       :data-is-focused="$boolAttr(isFocused)"
@@ -150,11 +151,14 @@ $nameHorizontalPadding: 8px;
   justify-content: center;
   width: $folderIconSize;
   height: $folderIconSize;
+  box-sizing: border-box;
+  border: 1px solid transparent;
   border-radius: 4px;
   color: $theme-ui-primary-default;
   &[data-is-opened] {
     color: var(--specific-channel-hash-opened);
-    background: $theme-ui-primary-background;
+    border-color: currentColor;
+    background: transparent;
   }
   &[data-is-inactive] {
     color: $theme-ui-secondary-default;
@@ -191,10 +195,6 @@ $nameHorizontalPadding: 8px;
   pointer-events: none;
 
   display: none;
-  .container[data-is-selected] > & {
-    @include background-accent-primary;
-    display: block;
-  }
   &[data-is-hovered],
   &[data-is-focused] {
     display: block;
