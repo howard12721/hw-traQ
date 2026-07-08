@@ -5,14 +5,14 @@ import { computed } from 'vue'
 import { isDefined } from '/@/lib/basic/array'
 import { useBrowserSettings } from '/@/store/app/browserSettings'
 import { useGazerNotificationsStore } from '/@/store/domain/gazerNotifications'
-import { useStaredChannels } from '/@/store/domain/staredChannels'
+import { useStarredChannels } from '/@/store/domain/starredChannels'
 import { useSubscriptionStore } from '/@/store/domain/subscription'
 import { useChannelsStore } from '/@/store/entities/channels'
 
 const useChannelsWithNotification = () => {
   const { unreadChannelsMap, subscriptionMap } = useSubscriptionStore()
   const { channelsMap, dmChannelsMap } = useChannelsStore()
-  const starredChannelStore = useStaredChannels()
+  const starredChannelStore = useStarredChannels()
   const { isGatewayUserId } = useGazerNotificationsStore()
 
   const mode = computed<'starred' | 'notified' | 'default' | 'both'>(() => {
@@ -50,10 +50,10 @@ const useChannelsWithNotification = () => {
   const noticeableChannels = computed(() => {
     if (mode.value === 'starred' || mode.value === 'both') {
       const starred = channelsWithNotification.value.filter(channel =>
-        starredChannelStore.staredChannelSet.value.has(channel.id)
+        starredChannelStore.starredChannelSet.value.has(channel.id)
       )
       const notStarred = channelsWithNotification.value.filter(
-        channel => !starredChannelStore.staredChannelSet.value.has(channel.id)
+        channel => !starredChannelStore.starredChannelSet.value.has(channel.id)
       )
       return [...starred, ...notStarred]
     }
@@ -70,7 +70,7 @@ const useChannelsWithNotification = () => {
       )
       const starred = channelsWithUnreadMessage.value.filter(
         channel =>
-          starredChannelStore.staredChannelSet.value.has(channel.id) &&
+          starredChannelStore.starredChannelSet.value.has(channel.id) &&
           subscriptionMap.value.get(channel.id) !==
             ChannelSubscribeLevel.notified
       )
@@ -79,16 +79,16 @@ const useChannelsWithNotification = () => {
         channel =>
           subscriptionMap.value.get(channel.id) !==
             ChannelSubscribeLevel.notified &&
-          !starredChannelStore.staredChannelSet.value.has(channel.id)
+          !starredChannelStore.starredChannelSet.value.has(channel.id)
       )
       return [...noticeable, ...starred, ...unread]
     }
     if (mode.value === 'starred') {
       const starred = channelsWithUnreadMessage.value.filter(channel =>
-        starredChannelStore.staredChannelSet.value.has(channel.id)
+        starredChannelStore.starredChannelSet.value.has(channel.id)
       )
       const notStarred = channelsWithUnreadMessage.value.filter(
-        channel => !starredChannelStore.staredChannelSet.value.has(channel.id)
+        channel => !starredChannelStore.starredChannelSet.value.has(channel.id)
       )
       return [...starred, ...notStarred]
     }
