@@ -15,10 +15,7 @@ export type NavigationItemType =
  * 「選択しない」を許すのでnullable
  */
 export type EphemeralNavigationItemType =
-  | 'qallController'
-  | 'draftList'
-  | 'audioController'
-  | undefined
+  'qallController' | 'draftList' | 'audioController' | undefined
 
 // TODO: 言語系リソースの置き場所
 export const navigationTypeNameMap: Record<NavigationItemType, string> = {
